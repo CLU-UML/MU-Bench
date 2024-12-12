@@ -65,7 +65,7 @@ from transformers import TrainingArguments, AutoTokenizer, ViltForImagesAndTextC
 args = TrainingArguments(output_dir="tmp")
 
 # Additional code for unlearning
-from mubench import load_unlearn_data, get_original_model, UnlearningTrainer, UnlearningArguments
+from mubench import UnlearningArguments, UnlearningTrainer
 unlearn_config = UnlearningArguments(
     unlearn_method="multi_delete",  # MU method
     backbone="vilt",                # Network architecture
