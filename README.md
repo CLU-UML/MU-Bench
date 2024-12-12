@@ -67,7 +67,7 @@ args = TrainingArguments(output_dir="tmp")
 # Additional code for unlearning
 from mubench import UnlearningArguments, UnlearningTrainer
 unlearn_config = UnlearningArguments(
-    unlearn_method="multi_delete",  # MU method
+    unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
     backbone="vilt",                # Network architecture
     data_name="nlvr2",              # Dataset
     del_ratio=5                     # Standardized splits
