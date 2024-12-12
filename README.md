@@ -61,7 +61,7 @@ pip install mubench
 
 ```python
 # Standard HuggingFace code
-from transformers import TrainingArguments, AutoTokenizer, ViltForImagesAndTextClassification
+from transformers import TrainingArguments
 args = TrainingArguments(output_dir="tmp")
 
 # Additional code for unlearning
