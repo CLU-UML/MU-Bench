@@ -67,13 +67,16 @@ args = TrainingArguments(output_dir="tmp")
 # Additional code for unlearning
 from mubench import load_unlearn_data, get_original_model, UnlearningTrainer, UnlearningArguments
 unlearn_config = UnlearningArguments(
-    unlearn_method="multi_delete", # MU method
-    backbone="vilt",               # Network architecture
-    data_name="nlvr2",             # Dataset
-    del_ratio=5                    # Standardized splits
+    unlearn_method="multi_delete",  # MU method
+    backbone="vilt",                # Network architecture
+    data_name="nlvr2",              # Dataset
+    del_ratio=5                     # Standardized splits
 )
-trainer = UnlearningTrainer(model=original_model, args=args, unlearn_config=unlearn_config, raw_datasets=raw_datasets, tokenizer=tokenizer)
-trainer.unlearn()
+trainer = UnlearningTrainer(
+    args=args, 
+    unlearn_config=unlearn_config
+)
+trainer.unlearn()                   # Start Unlearning and Evaluation!
 ```
 
 
