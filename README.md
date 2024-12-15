@@ -1,29 +1,26 @@
 # MU-Bench: A Multitask Multimodal Benchmark for Machine Unlearning
 
-<p align="center">
+<!-- <p align="center">
     <a href="https://github.com/beir-cellar/beir/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/beir-cellar/beir.svg">
     </a>
     <a href="https://github.com/beir-cellar/beir/blob/master/LICENSE">
         <img alt="License" src="https://img.shields.io/github/license/beir-cellar/beir.svg?color=green">
     </a>
-    <a href="https://colab.research.google.com/drive/1HfutiEhHMJLXiWGT8pcipxT5L2TpYEdt?usp=sharing">
-        <img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg">
-    </a>
     <a href="https://pepy.tech/project/beir">
         <img alt="Downloads" src="https://static.pepy.tech/personalized-badge/beir?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads">
     </a>
-</p>
+</p> -->
 
 <h4 align="center">
     <p>
         <a href="https://arxiv.org/abs/2406.14796">📄 Paper</a> |
         <a href="https://clu-uml.github.io/MU-Bench-Project-Page">🌐 Project Page</a> |
-        <a href="">🏆 Leaderboard</a> |
+        <a href="https://huggingface.co/spaces/jialicheng/MU-Bench_Leaderboard">🏆 Leaderboard</a> |
         <a href="#beers-installation">⚙️ Installation</a> |
-        <a href="#beers-quick-example">🚀 Quick Example</a> |
+        <a href="#Usage">🚀 Quick Example</a> |
         <a href="#Datasets">📊 Datasets</a> |
-        <a href="https://huggingface.co/BeIR">🤗 Hugging Face</a>
+        <a href="https://huggingface.co/collections/jialicheng/mu-bench-benchmarking-machine-unlearning-664a3dd153317bdff3d2fe45">🤗 Base Models</a>
     <p>
 </h4>
 
@@ -34,6 +31,7 @@
 
 ## Datasets
 
+#### Existing Datasets
 | **Dataset**              | **Task**                 | **Domain**          | **Modality**          | **D**    |
 |--------------------------|--------------------------|---------------------|-----------------------|----------|
 | **Discriminative Tasks** |                          |                     |                       |          |
@@ -48,13 +46,14 @@
 | **Celeb Profile**        | Text Generation          | Biography           | Text                  | 183      |
 | **Tiny ImageNet**        | Text-to-Image Generation | General             | Image-Text            | 20K      |
 
-## Add a new dataset
+**Bold** datasets are ones that have never been evaluated in unlearning.
+
+#### Add a new dataset
 
 If you want to add a new dataset to `mubench`, please fill out this [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header) or concat the authors.
 
 
 
-**Bold** datasets are ones that have never been evaluated in unlearning.
 
 ## Installation
 
@@ -62,7 +61,7 @@ If you want to add a new dataset to `mubench`, please fill out this [Google Form
 pip install mubench
 ```
 
-## How to use `mubench` for unlearning
+## Usage
 
 #### Case 1: Access standardized data and base models from `mubench`
 
