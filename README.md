@@ -1,4 +1,4 @@
-# MU-Bench: Benchmarking Machine Unlearning
+# MU-Bench: A Multitask Multimodal Benchmark for Machine Unlearning
 
 <p align="center">
     <a href="https://github.com/beir-cellar/beir/releases">
@@ -48,6 +48,11 @@
 | **Celeb Profile**        | Text Generation          | Biography           | Text                  | 183      |
 | **Tiny ImageNet**        | Text-to-Image Generation | General             | Image-Text            | 20K      |
 
+## Add a new dataset
+
+If you want to add a new dataset to `mubench`, please fill out this [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header) or concat the authors.
+
+
 
 **Bold** datasets are ones that have never been evaluated in unlearning.
 
@@ -57,8 +62,33 @@
 pip install mubench
 ```
 
-## How to use
+## How to use `mubench` for unlearning
 
+#### Case 1: Access standardized data and base models from `mubench`
+
+```python
+import mubench
+from mubench import UnlearningArguments, get_base_model, load_unlearn_data
+
+unlearn_config = UnlearningArguments(
+    unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
+    backbone="vilt",                # Network architecture
+    data_name="nlvr2",              # Dataset
+    del_ratio=5                     # Standardized splits
+)
+
+model, tokenizer = get_base_model(unlearn_config)
+raw_datasets = load_unlearn_data(unlearn_config)
+
+print(raw_datasets.keys())
+```
+By default, `load_unlearn_data` creates the training set `train` based on the unleaning method, as well as `df_eval` and `dr_eval` for evaluation. The original training set is `orig_train`.
+```python
+['train', 'validation', 'test', 'df_eval', 'dr_eval', 'orig_train']
+```
+
+
+#### Case 2: Unlearning with the standard data and base models from `mubench`
 ```python
 # Standard HuggingFace code
 from transformers import TrainingArguments
@@ -79,8 +109,49 @@ trainer = UnlearningTrainer(
 trainer.unlearn()                   # Start Unlearning and Evaluation!
 ```
 
+#### Case 3: Unlearning with customized original models from `mubench`
+```python
+# Standard HuggingFace code
+from transformers import TrainingArguments
+args = TrainingArguments(output_dir="tmp")
 
-##
+# Additional code for unlearning
+from mubench import UnlearningArguments, UnlearningTrainer
+
+model = # Define your own model
+raw_datasets = load_unlearn_data(unlearn_config)
+raw_datasets['train'] = # Customize unlearning data
+
+unlearn_config = UnlearningArguments(
+    unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
+    backbone="vilt",                # Network architecture
+    data_name="nlvr2",              # Dataset
+    del_ratio=5                     # Standardized splits
+)
+trainer = UnlearningTrainer(
+    args=args, 
+    unlearn_config=unlearn_config,
+    model=model,                    # Overwrite the standard model
+    raw_datasets=raw_datasets,      # Overwrite the standard data
+)
+trainer.unlearn()                   # Start Unlearning and Evaluation!
+```
+
+#### Case 3: Access data and models
+```python
+from mubench import get_training_, UnlearningTrainer
+unlearn_config = UnlearningArguments(
+    unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
+    backbone="vilt",                # Network architecture
+    data_name="nlvr2",              # Dataset
+    del_ratio=5                     # Standardized splits
+)
+trainer = UnlearningTrainer(
+    args=args, 
+    unlearn_config=unlearn_config
+)
+trainer.unlearn()                   # Start Unlearning and Evaluation!
+```
 
 ## 📢 Updates and Changelog
 
