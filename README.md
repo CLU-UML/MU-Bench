@@ -16,10 +16,11 @@
     <p>
         <a href="https://arxiv.org/abs/2406.14796">📄 Paper</a> |
         <a href="https://clu-uml.github.io/MU-Bench-Project-Page">🌐 Project Page</a> |
-        <a href="https://huggingface.co/spaces/jialicheng/MU-Bench_Leaderboard">🏆 Leaderboard</a> |
         <a href="#Installation">⚙️ Installation</a> |
-        <a href="#Usage">🚀 Quick Example</a> |
-        <a href="https://colab.research.google.com/drive/1WiCYcYQ9T2eEPep38szZwPKgYEx-TGHD?usp=sharing">⚡ Demo</a> |
+        <a href="#Usage">🚀 Example Usage</a> |
+        <a href="https://colab.research.google.com/drive/1WiCYcYQ9T2eEPep38szZwPKgYEx-TGHD?usp=sharing">⚡ Demo</a>
+    <p>
+        <a href="https://huggingface.co/spaces/jialicheng/MU-Bench_Leaderboard">🏆 Leaderboard</a> |
         <a href="#Datasets">📊 Datasets</a> |
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header">📊 Add A New Dataset</a> |
         <a href="https://huggingface.co/collections/jialicheng/mu-bench-benchmarking-machine-unlearning-664a3dd153317bdff3d2fe45">🤗 Base Models</a>

@@ -1,3 +1,4 @@
+from .args import UnlearningArguments
 from .data.base import load_unlearn_data
 from .utils import load_base_model
 
