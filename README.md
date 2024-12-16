@@ -17,9 +17,11 @@
         <a href="https://arxiv.org/abs/2406.14796">📄 Paper</a> |
         <a href="https://clu-uml.github.io/MU-Bench-Project-Page">🌐 Project Page</a> |
         <a href="https://huggingface.co/spaces/jialicheng/MU-Bench_Leaderboard">🏆 Leaderboard</a> |
-        <a href="#beers-installation">⚙️ Installation</a> |
+        <a href="#Installation">⚙️ Installation</a> |
         <a href="#Usage">🚀 Quick Example</a> |
+        <a href="https://colab.research.google.com/drive/1WiCYcYQ9T2eEPep38szZwPKgYEx-TGHD?usp=sharing">⚡ Demo</a> |
         <a href="#Datasets">📊 Datasets</a> |
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header">📊 Add A New Dataset</a> |
         <a href="https://huggingface.co/collections/jialicheng/mu-bench-benchmarking-machine-unlearning-664a3dd153317bdff3d2fe45">🤗 Base Models</a>
     <p>
 </h4>
@@ -28,10 +30,20 @@
 
 ## Introduction
 
+MU-Bench is trying to address the following limitations of the evaluation of Machine Unlearning (MU):
+1. Inconsistency. employing different trained models and architectures, and sample removal strategies, which hampers accurate comparison. In addition, prior MU approaches have mainly focused on _singular_ tasks or modalities, which is not comprehensive. To address these limitations, 
+
+MU-Bench is the first comprehensive benchmark for MU that
+
+1. unifies the sets of deleted samples and trained models
+2. provides broad coverage of tasks and data modalities, including previously unexplored domains such as speech and video classification. 
+
 
 ## Datasets
 
-#### Existing Datasets
+To add a new dataset to `mubench`, please fill out this [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header) or concat the authors.
+
+
 | **Dataset**              | **Task**                 | **Domain**          | **Modality**          | **D**    |
 |--------------------------|--------------------------|---------------------|-----------------------|----------|
 | **Discriminative Tasks** |                          |                     |                       |          |
@@ -47,11 +59,6 @@
 | **Tiny ImageNet**        | Text-to-Image Generation | General             | Image-Text            | 20K      |
 
 **Bold** datasets are ones that have never been evaluated in unlearning.
-
-#### Add a new dataset
-
-If you want to add a new dataset to `mubench`, please fill out this [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfvCNaMy8H0-akM7DT4VoVOxLN_Qtd-wFre-EEYAPiCKC82xA/viewform?usp=header) or concat the authors.
-
 
 
 
