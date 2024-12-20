@@ -102,14 +102,14 @@ from transformers import TrainingArguments
 args = TrainingArguments(output_dir="tmp")
 
 # Additional code for unlearning
-from mubench import UnlearningArguments, UnlearningTrainer
+from mubench import UnlearningArguments, unlearn_trainer
 unlearn_config = UnlearningArguments(
     unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
     backbone="vilt",                # Network architecture
     data_name="nlvr2",              # Dataset
     del_ratio=5                     # Standardized splits
 )
-trainer = UnlearningTrainer(
+trainer = unlearn_trainer(unlearn_config.unlearn_method)(
     args=args, 
     unlearn_config=unlearn_config
 )
@@ -123,7 +123,7 @@ from transformers import TrainingArguments
 args = TrainingArguments(output_dir="tmp")
 
 # Additional code for unlearning
-from mubench import UnlearningArguments, UnlearningTrainer
+from mubench import UnlearningArguments, unlearn_trainer
 
 model = # Define your own model
 raw_datasets = load_unlearn_data(unlearn_config)
@@ -135,7 +135,7 @@ unlearn_config = UnlearningArguments(
     data_name="nlvr2",              # Dataset
     del_ratio=5                     # Standardized splits
 )
-trainer = UnlearningTrainer(
+trainer = unlearn_trainer(unlearn_config.unlearn_method)(
     args=args, 
     unlearn_config=unlearn_config,
     model=model,                    # Overwrite the standard model
@@ -146,14 +146,14 @@ trainer.unlearn()                   # Start Unlearning and Evaluation!
 
 #### Case 3: Access data and models
 ```python
-from mubench import get_training_, UnlearningTrainer
+from mubench import get_training_, unlearn_trainer
 unlearn_config = UnlearningArguments(
     unlearn_method="multi_delete",  # MU method, MultiDelete ECCV'24
     backbone="vilt",                # Network architecture
     data_name="nlvr2",              # Dataset
     del_ratio=5                     # Standardized splits
 )
-trainer = UnlearningTrainer(
+trainer = unlearn_trainer(unlearn_config.unlearn_method)(
     args=args, 
     unlearn_config=unlearn_config
 )
