@@ -71,9 +71,10 @@ for b in backbones:
     
     config['num_train_epochs'] = 20
     config['model_name_or_path'] = get_full_model_name(b)
+    config['dataset_name'] = d
     config['seed'] = s
-    config['output_dir'] = f'../../checkpoint/imdb/{b}'
-    config['hub_model_id'] = f'imdb-{b}'
+    config['output_dir'] = f'../../checkpoint/{d}/{b}'
+    config['hub_model_id'] = f'{d}-{b}'
 
     with open(f'configs/train/{b}.json', 'w') as f:
         json.dump(config, f, indent=4)
@@ -85,7 +86,7 @@ for b in backbones:
             for m in methods:
                 config = copy.deepcopy(template)
                 out_dir = f'{b}/{m}/{dr}'
-                out_name = f'imdb_{s}'
+                out_name = f'{d}_{s}'
                 os.makedirs(f'configs/unlearn/{out_dir}', exist_ok=True)
 
                 config['unlearn_method'] = m
@@ -94,9 +95,10 @@ for b in backbones:
                     config['learning_rate'] /= 5
                 
                 config['model_name_or_path'] = get_full_model_name(b)
+                config['dataset_name'] = d
                 config['seed'] = s
-                config['output_dir'] = f'checkpoint/unlearn/imdb/{out_dir}/{out_name}'
-                config['hub_model_id'] = f'{b}-{m}-{dr}-imdb-{s}'
+                config['output_dir'] = f'checkpoint/unlearn/{d}/{out_dir}/{out_name}'
+                config['hub_model_id'] = f'{b}-{m}-{dr}-{d}-{s}'
 
 
                 with open(f'configs/unlearn/{out_dir}/{out_name}.json', 'w') as f:

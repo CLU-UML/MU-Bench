@@ -33,7 +33,7 @@ def get_full_model_name(m):
 template = {
     "do_train": True,
     "do_eval": True,
-    "dataset_name": "cifar100",
+    "dataset_name": "{d}",
     "num_train_epochs": 20,
     "logging_steps": 10,
     "evaluation_strategy": "epoch",
@@ -65,8 +65,8 @@ for b in backbones:
     config['num_train_epochs'] = 300
     config['model_name_or_path'] = get_full_model_name(b)
     config['dataset_name'] = d
-    config['output_dir'] = f'../../checkpoint/cifar100/{b}'
-    config['hub_model_id'] = f'cifar100-{b}'
+    config['output_dir'] = f'../../checkpoint/{d}/{b}'
+    config['hub_model_id'] = f'{d}-{b}'
 
     if b == 'vit-large':
         config['per_device_train_batch_size'] //= 2
@@ -84,7 +84,7 @@ for b in backbones:
             for m in methods:
                 config = copy.deepcopy(template)
                 out_dir = f'{b}/{m}/{dr}'
-                out_name = f'cifar100_{s}'
+                out_name = f'{d}_{s}'
                 os.makedirs(f'configs/unlearn/{out_dir}', exist_ok=True)
 
                 config['unlearn_method'] = m
@@ -95,8 +95,8 @@ for b in backbones:
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
-                config['output_dir'] = f'checkpoint/unlearn/cifar100/{out_dir}/{out_name}'
-                config['hub_model_id'] = f'{b}-{m}-{dr}-cifar100-{s}'
+                config['output_dir'] = f'checkpoint/unlearn/{d}/{out_dir}/{out_name}'
+                config['hub_model_id'] = f'{b}-{m}-{dr}-{d}-{s}'
 
 
                 with open(f'configs/unlearn/{out_dir}/{out_name}.json', 'w') as f:
