@@ -25,6 +25,8 @@ class SCRUBTrainer(UnlearningTrainer):
         self.ori_model.eval()
         self.do_max_step = True
 
+        self.args.num_train_epochs /= 2
+
     def compute_loss_cl(self, model, inputs, return_outputs=False):
         if model.training:
             if self.do_max_step:
