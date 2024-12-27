@@ -20,7 +20,9 @@ model_map_rev = {
 
     # IMDB
     'bert-base-uncased': 'bert-base',
+    'bert-large-uncased': 'bert-large',
     'FacebookAI/roberta-base': 'roberta-base',
+    'FacebookAI/roberta-large': 'roberta-large',
     'distilbert/distilbert-base-uncased': 'distilbert-base',
     'google/electra-base-discriminator': 'electra-base',
     'microsoft/deberta-v3-base': 'deberta-base',
