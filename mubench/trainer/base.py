@@ -59,6 +59,12 @@ class UnlearningTrainer(Trainer):
         self.unlearn_config = kwargs['unlearn_config']
         kwargs.pop('unlearn_config')
 
+        # Load original model
+        original_model_path = f'../../checkpoint/{unlearn_config.data_name}/{unlearn_config.backbone}'
+        if not os.path.exists(original_model_path):
+            original_model_path = f'jialicheng/{unlearn_config.data_name}/{unlearn_config.backbone}'
+        kwargs['model'] = AutoModelForImageClassification.from_pretrained(original_model_path)
+
         super().__init__(**kwargs)
         self.num_labels = self.model.config.num_labels if hasattr(self.model.config, 'num_labels') else None
         self.unlearn_time = None

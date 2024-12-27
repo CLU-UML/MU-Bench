@@ -36,7 +36,6 @@ def get_children(model: torch.nn.Module):
 
 
 class BadTeachingTrainer(UnlearningTrainer):
-    '''Bad Teaching'''
         
     def method_specific_setup(self):
         self.good_teacher = copy.deepcopy(self.model)
@@ -59,7 +58,7 @@ class BadTeachingTrainer(UnlearningTrainer):
         self.good_teacher.eval()
         self.bad_teacher.eval()
 
-    def compute_loss_superloss(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False):
         """
         Compute loss wrapper for unlearning method FineTune
         """
@@ -109,7 +108,7 @@ class BadTeachingTrainer(UnlearningTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_standard(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
         """wrapper for compute_loss training with non-SuperLoss."""
 
         if model.training:
@@ -153,7 +152,7 @@ class BadTeachingTrainer(UnlearningTrainer):
         return (loss, outputs) if return_outputs else loss
 
 
-class BadTeachingTrainer(UnlearningTrainer):
+class _BadTeachingTrainer(UnlearningTrainer):
     def prepare_dr_dataloader(self):
         train_dataset = self.raw_datasets['dr']
         data_collator = self.data_collator

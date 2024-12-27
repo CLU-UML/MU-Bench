@@ -100,7 +100,7 @@ class SCRUBTrainer(UnlearningTrainer):
         self.unlearn_start_time = time.time()
         self.args.num_train_epochs = self.args.num_train_epochs / 2
 
-        self.train_dataset = self.raw_datasets['df_for_train']
+        self.train_dataset = self.raw_datasets['df_train']
         logger.info(f'******** Doing max step for {self.args.num_train_epochs} epochs ********')
         print(f'******** Doing max step for {self.args.num_train_epochs} epochs ********')
         super().train(resume_from_checkpoint, trial, ignore_keys_for_eval, **kwargs)

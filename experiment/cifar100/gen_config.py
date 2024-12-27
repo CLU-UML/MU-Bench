@@ -7,14 +7,14 @@ import argparse
 d = 'cifar100'
 seeds = [42, 87, 21, 100, 13]
 del_ratio = [2.0, 4.0, 6.0, 8.0, 10.0]
-backbones = ['resnet-18', 'resnet-34', 'resnet-50', 'vit-base-patch16-224', 'vit-large-patch16-224', 
+backbones = ['resnet-18', 'resnet-34', 'resnet-50', 'vit-base', 'vit-large', 
              'swin-tiny', 'swin-base', 'mobilenet_v1', 'mobilenet_v2', 'convnext-base-224', 'convnext-base-224-22k']
 methods = ['retrain', 'neggrad', 'random_label', 'bad_teaching', 'scrub', 'salul']
 
 
 def get_full_model_name(m):
     if 'vit-' in m:
-        m = 'google/' + m + '-in21k'
+        m = 'google/' + m + '-patch16-224-in21k'
 
     elif 'resnet-' in m:
         m = 'microsoft/' + m
@@ -33,14 +33,15 @@ def get_full_model_name(m):
 template = {
     "do_train": True,
     "do_eval": True,
-    "dataset_name": "mnist",
+    "dataset_name": "cifar100",
     "num_train_epochs": 20,
-    "logging_steps": 1000,
+    "logging_steps": 10,
     "evaluation_strategy": "epoch",
     "save_strategy": "epoch",
-    "per_device_train_batch_size": 32,
+    "per_device_train_batch_size": 128,
     "per_device_eval_batch_size": 256,
-    "learning_rate": 2e-5,
+    "learning_rate": 1e-5,
+    "weight_decay": 1e-4,
     "warmup_steps": 0,
     "save_total_limit": 1,
     "load_best_model_at_end": True,
@@ -51,6 +52,7 @@ template = {
     "remove_unused_columns": False,
     "image_column_name": 'image',
     "label_column_name": 'label',
+    "seed": 42,
 }
 
 
@@ -58,17 +60,21 @@ template = {
 s = 42
 for b in backbones:
     config = copy.deepcopy(template)
-    out_dir = f'{b}'
-    out_name = f'{d}_{s}'
-    os.makedirs(f'configs/train/{out_dir}', exist_ok=True)
+    os.makedirs(f'configs/train', exist_ok=True)
     
+    config['num_train_epochs'] = 300
     config['model_name_or_path'] = get_full_model_name(b)
     config['dataset_name'] = d
-    config['seed'] = s
-    config['output_dir'] = f'checkpoint/train/{out_dir}/{out_name}'
-    config['hub_model_id'] = f'{b}-{d}-{s}'
+    config['output_dir'] = f'../../checkpoint/cifar100/{b}'
+    config['hub_model_id'] = f'cifar100-{b}'
 
-    with open(f'configs/train/{out_dir}/{out_name}.json', 'w') as f:
+    if b == 'vit-large':
+        config['per_device_train_batch_size'] //= 2
+
+    if 'vit-' in b:
+        config['num_train_epochs'] = 100
+
+    with open(f'configs/train/{b}.json', 'w') as f:
         json.dump(config, f, indent=4)
 
 # Unlearn
@@ -78,7 +84,7 @@ for b in backbones:
             for m in methods:
                 config = copy.deepcopy(template)
                 out_dir = f'{b}/{m}/{dr}'
-                out_name = f'{d}_{s}'
+                out_name = f'cifar100_{s}'
                 os.makedirs(f'configs/unlearn/{out_dir}', exist_ok=True)
 
                 config['unlearn_method'] = m
@@ -89,8 +95,8 @@ for b in backbones:
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
-                config['output_dir'] = f'checkpoint/unlearn/{out_dir}/{out_name}'
-                config['hub_model_id'] = f'{b}-{m}-{dr}-{d}-{s}'
+                config['output_dir'] = f'checkpoint/unlearn/cifar100/{out_dir}/{out_name}'
+                config['hub_model_id'] = f'{b}-{m}-{dr}-cifar100-{s}'
 
 
                 with open(f'configs/unlearn/{out_dir}/{out_name}.json', 'w') as f:

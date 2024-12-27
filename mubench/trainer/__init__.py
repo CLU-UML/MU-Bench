@@ -11,7 +11,7 @@ def get_trainer(trainer_name):
         "bad_teaching": BadTeachingTrainer,
         "grad_ascent": GradAscentTrainer,
         "neggrad": GradAscentTrainer,
-        "random_labeling": RandomLabelingTrainer,
+        "random_label": RandomLabelingTrainer,
         "scrub": SCRUBTrainer,
         "salun": SalUnTrainer,
     }

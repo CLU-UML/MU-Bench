@@ -178,6 +178,16 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    import wandb
+    import mubench
+    from mubench.data.base import load_cifar100
+    training_args.report_to = ['wandb']
+    project = 'MU-Bench'
+    group = 'Original Models'
+    display_name = f'CIFAR100-{mubench.model_map_rev[model_args.model_name_or_path]}'
+    run_id = f'original-cifar100-{mubench.model_map_rev[model_args.model_name_or_path]}'
+    wandb.init(project=project, group=group, name=display_name, config=training_args, id=run_id)
+
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
     send_example_telemetry("run_image_classification", model_args, data_args)
@@ -225,26 +235,7 @@ def main():
     set_seed(training_args.seed)
 
     # Initialize our dataset and prepare it for the 'image-classification' task.
-    if data_args.dataset_name is not None:
-        dataset = load_dataset(
-            data_args.dataset_name,
-            data_args.dataset_config_name,
-            cache_dir=model_args.cache_dir,
-            task="image-classification",
-            use_auth_token=True if model_args.use_auth_token else None,
-        )
-    else:
-        data_files = {}
-        if data_args.train_dir is not None:
-            data_files["train"] = os.path.join(data_args.train_dir, "**")
-        if data_args.validation_dir is not None:
-            data_files["validation"] = os.path.join(data_args.validation_dir, "**")
-        dataset = load_dataset(
-            "imagefolder",
-            data_files=data_files,
-            cache_dir=model_args.cache_dir,
-            task="image-classification",
-        )
+    dataset = load_cifar100()
 
     def collate_fn(examples):
         pixel_values = torch.stack([example["pixel_values"] for example in examples])
@@ -347,6 +338,7 @@ def main():
         # Set the training transforms
         dataset["train"].set_transform(train_transforms)
 
+    dataset['validation'] = dataset['test']
     if training_args.do_eval:
         if "validation" not in dataset:
             raise ValueError("--do_eval requires a validation dataset")
@@ -356,13 +348,14 @@ def main():
             )
         # Set the validation transforms
         dataset["validation"].set_transform(val_transforms)
+    dataset["test"].set_transform(val_transforms)
 
     # Initalize our trainer
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"] if training_args.do_train else None,
-        eval_dataset=dataset["validation"] if training_args.do_eval else None,
+        eval_dataset=dataset["test"] if training_args.do_eval else None,
         compute_metrics=compute_metrics,
         tokenizer=image_processor,
         data_collator=collate_fn,
@@ -383,9 +376,23 @@ def main():
 
     # Evaluation
     if training_args.do_eval:
-        metrics = trainer.evaluate()
-        trainer.log_metrics("eval", metrics)
-        trainer.save_metrics("eval", metrics)
+        logger.info("*** Test ***")
+        metrics = trainer.evaluate(eval_dataset=dataset["test"], metric_key_prefix='test')
+        trainer.log_metrics("test", metrics)
+        trainer.save_metrics("test", metrics)
+
+        logger.info("*** Dr ***")
+        dataset["train"].set_transform(val_transforms)
+        metrics = trainer.evaluate(eval_dataset=dataset["train"], metric_key_prefix='dr')
+        trainer.log_metrics("dr", metrics)
+        trainer.save_metrics("dr", metrics)
+
+        # logger.info("*** OOD ***")
+        # dataset["ood"].set_transform(val_transforms)
+        # metrics = trainer.evaluate(eval_dataset=dataset["ood"], metric_key_prefix='ood')
+        # trainer.log_metrics("ood", metrics)
+        # trainer.save_metrics("ood", metrics)
+
 
     # Write model card and (optionally) push to hub
     kwargs = {

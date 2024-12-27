@@ -1,7 +1,9 @@
 import os
 import copy
 import json
+from pathlib import Path
 import numpy as np
+import pandas as pd
 import datasets
 from datasets import load_dataset, concatenate_datasets, interleave_datasets, DatasetDict
 from datasets import Dataset as HFDataset
@@ -9,8 +11,51 @@ from torch.utils.data import Dataset
 import mubench
 
 
-def find_data_source(dataset_name):
-    pass
+def find_data_files(data_name):
+    """
+    Look for the data file in the following directories, in order:
+    1. ../../ (two levels up)
+    2. mubench/raw_data
+    3. ~/.cache/mubench
+    
+    Returns the full path to the file if found, otherwise None.
+    """
+    package_folder = Path(mubench.__path__[0])
+    search_dirs = [
+        package_folder.parent.parent,           # ../../
+        package_folder / "raw_data",            # mubench/raw_data
+        Path(os.getenv('XDG_CACHE_HOME', Path.home() / ".cache")) / "mubench"  # .cache
+    ]
+
+    # Look for the file in the specified directories
+    for directory in search_dirs:
+        file_path = directory / filename
+        if file_path.exists():
+            return file_path
+
+    # If file not found, run the download script
+    download_script = package_folder / "script" / f"download_{data_name}.sh"
+    if download_script.exists():
+        try:
+            print("File not found. Running download script...")
+            subprocess.run(["bash", str(download_script)], check=True)
+            print("Download script executed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error running download script: {e}")
+            return None
+    else:
+        print("Download script not found. Cannot download data.")
+        return None
+
+    # After downloading, check if the file exists in the package_folder/data
+    downloaded_file_path = package_folder / "raw_data" / filename
+    if downloaded_file_path.exists():
+        return downloaded_file_path
+
+    # If the file is still not found, return None
+    print("Data file not found even after attempting download.")
+
+    return None
 
 def load_unlearn_data(unlearn_config):
     # Dictionary to map dataset names to their respective load functions
@@ -49,14 +94,15 @@ def load_cifar100():
 
 def load_imdb():
     raw_datasets = load_dataset('imdb')
-    raw_datasets = raw_datasets.rename_column('fine_label', 'label')
+    ood = load_dataset('rotten_tomatoes')
+    raw_datasets['ood_eval'] = concatenate_datasets([ood['train'], ood['validation'], ood['test']])
 
     return raw_datasets
 
 def load_ddi2013():
-    train = pd.read_csv(f'./data/ddi/train.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
-    dev = pd.read_csv(f'./data/ddi/dev.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
-    test = pd.read_csv(f'./data/ddi/test.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
+    train = pd.read_csv(f'{mubench.__path__[0]}/raw_data/ddi/train.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
+    dev = pd.read_csv(f'{mubench.__path__[0]}/raw_data/ddi/dev.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
+    test = pd.read_csv(f'{mubench.__path__[0]}/raw_data/ddi/test.tsv', sep='\t', names=['none', 'text', 'label']).drop('none', axis=1)
 
     label_mapping = {'DDI-false': 0, 'DDI-mechanism': 1, 'DDI-advise': 2, 'DDI-effect': 3, 'DDI-int': 4}
     train.label = train.label.apply(label_mapping.get)
@@ -64,9 +110,9 @@ def load_ddi2013():
     test.label = test.label.apply(label_mapping.get)
 
     raw_datasets = DatasetDict({
-        'train': Dataset.from_pandas(train),
-        'validation': Dataset.from_pandas(dev),
-        'test': Dataset.from_pandas(test),
+        'train': HFDataset.from_pandas(train),
+        'validation': HFDataset.from_pandas(dev),
+        'test': HFDataset.from_pandas(test),
     })
 
     return raw_datasets
@@ -78,12 +124,13 @@ def load_nlvr2(name):
             'train': f'./data/{name}/annotations/train.json',
             'validation': f'./data/{name}/annotations/dev.json',
             'test': f'./data/{name}/annotations/test.json',
+            'ood': f'./data/{name}/annotations/test2.json',
         })
 
     return DatasetDict(raw_datasets)
 
 def load_speech_commands():
-    return load_dataset('superb_ks')
+    return load_dataset('superb', 'ks')
 
 def load_ucf101():
     pass
@@ -92,6 +139,8 @@ def load_samsum():
     return load_dataset('samsum')
 
 def load_bioceleb():
+    pass
+def load_celeb_profile():
     pass
 def load_tiny_imagenet():
     pass
@@ -164,8 +213,12 @@ def prepare_unlearning_data(unlearn_config, raw_datasets, label_col='label', is_
     elif unlearn_config.unlearn_method in ['neggrad']:
         raw_datasets['train'] = copy.deepcopy(df_data)
 
-    elif unlearn_config.unlearn_method in ['random_label', 'salul']:
+    elif unlearn_config.unlearn_method in ['random_label', 'salun']:
         df_train = copy.deepcopy(df_data)
+
+        if unlearn_config.unlearn_method == 'salun':
+            raw_datasets['df_train'] = df_data
+
         dr_train = copy.deepcopy(dr_data)
         df_corrupted = _corrupt_label(df_train, dr_train, label_col, is_generative_task, unlearn_config.random_seed)
         

@@ -367,10 +367,10 @@ def main():
             checkpoint = last_checkpoint
         train_result = trainer.unlearn(resume_from_checkpoint=checkpoint)
         trainer.save_model()
+        trainer.save_state()
         if train_result is not None:
             trainer.log_metrics("train", train_result.metrics)
             trainer.save_metrics("train", train_result.metrics)
-        trainer.save_state()
 
     # Evaluation
     if training_args.do_eval:

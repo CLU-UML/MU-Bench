@@ -21,22 +21,22 @@ class RandomLabelingTrainer(UnlearningTrainer):
     def method_specific_setup(self):
         pass
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
-        if return_outputs:
-            loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
-        else:
-            loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    # def compute_loss_cl(self, model, inputs, return_outputs=False):
+    #     # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
+    #     if return_outputs:
+    #         loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    #     else:
+    #         loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        loss = calculate_superloss(loss, inputs).mean()
+    #     loss = calculate_superloss(loss, inputs).mean()
 
-        return (loss, outputs) if return_outputs else loss
+    #     return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
-        if return_outputs:
-            loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
-        else:
-            loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    # def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    #     # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
+    #     if return_outputs:
+    #         loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    #     else:
+    #         loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        return (loss, outputs) if return_outputs else loss
+    #     return (loss, outputs) if return_outputs else loss

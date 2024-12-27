@@ -3,6 +3,30 @@ import evaluate
 import numpy as np
 import nltk
 from sklearn.metrics import roc_auc_score
+from .original_performance import orig_acc
+
+
+def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
+    """
+    Compute the harmonic mean of performance of dt_acc and abs(df_acc - random_acc).
+    We aim to find an unlearned model with both close-to-original performance on Dt and close-to-random performance on Df.
+    
+    Args:
+        dt_acc (float): performance on Dt. Higher better.
+        df_acc (float): performance on Df. Lower better, but should not be lower than random performance 
+                        (to be converted to abs difference from random accuracy).
+        random_acc (float): random performance (default is 0.5 for binary classification).
+    
+    Returns:
+        float: The harmonic mean of dt_acc and abs(df_acc - random_acc).
+    """
+    # Convert dt and df_acc
+    modified_dt_acc = 1 - abs(dt_acc - orig_dt_acc)
+    modified_df_acc = abs(df_acc - random_acc)
+    
+    harmonic_mean = 2 * modified_dt_acc * modified_df_acc / (modified_dt_acc + modified_df_acc)
+    
+    return harmonic_mean
 
 
 class Evaluator:
@@ -11,6 +35,8 @@ class Evaluator:
         self.config = config
         self.metric_names = metric_names
 
+        self.orig_test_acc = orig_test_acc
+        self.random_acc = random_acc
         self.test_label = test_label
         self.test_pred = test_pred
         self.df_label = df_label
@@ -43,7 +69,12 @@ class Evaluator:
             self.get_dr_performance()
 
         for metric_name in self.metric_names:
-            self.metrics['unlearn_overall_' + metric_name] = self.metrics['test_' + metric_name] + (1 - self.metrics['df_' + metric_name])
+            dt_acc = self.metrics['test_' + metric_name]
+            df_acc = self.metrics['df_' + metric_name]
+            orig_dt_acc = orig_acc[self.unlearn_config.data_name]['dt']
+            random_acc = orig_acc[self.unlearn_config.data_name]['random']
+
+            self.metrics['unlearn_overall_' + metric_name] = harmonic_mean(dt_acc, df_acc, orig_dt_acc, random_acc)
             if self.dr_pred is not None:
                 self.metrics['unlearn_overall_' + metric_name] = (self.metrics['unlearn_overall_' + metric_name] + self.metrics['knowledge_gap']) / 3
             else:

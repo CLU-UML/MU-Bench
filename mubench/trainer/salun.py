@@ -21,25 +21,25 @@ class SalUnTrainer(UnlearningTrainer):
     def method_specific_setup(self):
         self.salient_mask = None
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
-        if return_outputs:
-            loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
-        else:
-            loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    # def compute_loss_cl(self, model, inputs, return_outputs=False):
+    #     # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
+    #     if return_outputs:
+    #         loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    #     else:
+    #         loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        loss = calculate_superloss(loss, inputs).mean()
+    #     loss = calculate_superloss(loss, inputs).mean()
 
-        return (loss, outputs) if return_outputs else loss
+    #     return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
-        if return_outputs:
-            loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
-        else:
-            loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    # def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    #     # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
+    #     if return_outputs:
+    #         loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+    #     else:
+    #         loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        return (loss, outputs) if return_outputs else loss
+    #     return (loss, outputs) if return_outputs else loss
 
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
         model.train()
@@ -74,8 +74,8 @@ class SalUnTrainer(UnlearningTrainer):
         **kwargs):
 
         self.unlearn_start_time = time.time()
-    
-        self.train_dataset = self.raw_datasets['df_for_train']
+
+        self.train_dataset = self.raw_datasets['df_train']
         self.salient_mask = self.compute_salient_mask()
         self.train_dataset = self.raw_datasets['train']
         out = super().train(resume_from_checkpoint, trial, ignore_keys_for_eval, **kwargs)
