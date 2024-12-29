@@ -251,8 +251,6 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    # Initialize our dataset and prepare it for the 'image-classification' task.
-    raw_datasets = load_unlearn_data(unlearn_config)
 
     def collate_fn(examples):
         pixel_values = torch.stack([example["pixel_values"] for example in examples])
@@ -264,23 +262,6 @@ def main():
 
         return out
 
-
-    # If we don't have a validation split, split off a percentage of train as validation.
-    # data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
-    # if isinstance(data_args.train_val_split, float) and data_args.train_val_split > 0.0:
-    #     split = dataset["train"].train_test_split(data_args.train_val_split)
-    #     dataset["train"] = split["train"]
-    #     dataset["validation"] = split["test"]
-
-    # Prepare label mappings.
-    # We'll include these in the model's config to get human readable labels in the Inference API.
-    # data_args.label_column_name = 'label'
-    # labels = raw_datasets["orig_train"].features[data_args.label_column_name].names
-    # label2id, id2label = {}, {}
-    # for i, label in enumerate(labels):
-    #     label2id[label] = str(i)
-    #     id2label[str(i)] = label
-
     # Load the accuracy metric from the datasets package
     metric = evaluate.load("accuracy")
 
@@ -290,8 +271,6 @@ def main():
         """Computes accuracy on a batch of predictions"""
         return metric.compute(predictions=np.argmax(p.predictions, axis=1), references=p.label_ids)
     
-    original_model_name = f'../../checkpoint/{unlearn_config.data_name}/{unlearn_config.backbone}/{unlearn_config.data_name}_42'
-    ori_model = AutoModelForImageClassification.from_pretrained(original_model_name)
     image_processor = AutoImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -338,17 +317,13 @@ def main():
         return example_batch
 
 
-    raw_datasets["train"].set_transform(train_transforms)
-    raw_datasets["test"].set_transform(val_transforms)
-    raw_datasets["df_eval"].set_transform(val_transforms)
-    raw_datasets["dr_eval"].set_transform(val_transforms)
-
+    # Initialize our dataset and prepare it for the 'image-classification' task.
+    raw_datasets = load_unlearn_data(unlearn_config, train_transforms=train_transforms, eval_transforms=val_transforms)
 
     # Initalize our trainer
     trainer_cls = get_trainer(unlearn_config.unlearn_method)
     trainer = trainer_cls(
         raw_datasets=raw_datasets,
-        model=ori_model,
         args=training_args,
         train_dataset=raw_datasets["train"] if training_args.do_train else None,
         eval_dataset=raw_datasets["test"] if training_args.do_eval else None,
@@ -374,28 +349,22 @@ def main():
 
     # Evaluation
     if training_args.do_eval:
-        logger.info("*** Test ***")
-        metrics = trainer.evaluate(eval_dataset=raw_datasets["test"], metric_key_prefix='test')
-        trainer.log_metrics("test", metrics)
-        trainer.save_metrics("test", metrics)
-
-        logger.info("*** Dr ***")
-        raw_datasets["dr_eval"].set_transform(val_transforms)
-        metrics = trainer.evaluate(eval_dataset=raw_datasets["dr_eval"], metric_key_prefix='dr')
-        trainer.log_metrics("dr", metrics)
-        trainer.save_metrics("dr", metrics)
+        logger.info("*** Evaluate Unlearning ***")
+        metrics = trainer.evaluate_unlearn()
+        trainer.log_metrics('unlearn_final', metrics)
+        trainer.save_metrics('unlearn_final', metrics)
 
     # Write model card and (optionally) push to hub
-    # kwargs = {
-    #     "finetuned_from": model_args.model_name_or_path,
-    #     "tasks": "image-classification",
-    #     "dataset": data_args.dataset_name,
-    #     "tags": ["image-classification", "vision"],
-    # }
-    # if training_args.push_to_hub:
-    #     trainer.push_to_hub(**kwargs)
-    # else:
-    #     trainer.create_model_card(**kwargs)
+    kwargs = {
+        "finetuned_from": model_args.model_name_or_path,
+        "tasks": "image-classification",
+        "dataset": data_args.dataset_name,
+        "tags": ["image-classification", "vision"],
+    }
+    if training_args.push_to_hub:
+        trainer.push_to_hub(**kwargs)
+    else:
+        trainer.create_model_card(**kwargs)
 
 
 if __name__ == "__main__":

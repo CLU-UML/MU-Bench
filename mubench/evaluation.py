@@ -20,112 +20,90 @@ def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
     Returns:
         float: The harmonic mean of dt_acc and abs(df_acc - random_acc).
     """
+
+    # dt_acc cannot drop by 20% compared to orig_dt_acc
+    if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
+        return 0
+
     # Convert dt and df_acc
-    modified_dt_acc = 1 - abs(dt_acc - orig_dt_acc)
-    modified_df_acc = abs(df_acc - random_acc)
+    diff_dt_acc = 1 - abs(dt_acc - orig_dt_acc)
+    diff_df_acc = 1 - abs(df_acc - random_acc)
     
-    harmonic_mean = 2 * modified_dt_acc * modified_df_acc / (modified_dt_acc + modified_df_acc)
+    harmonic_mean = 2 * diff_dt_acc * diff_df_acc / (diff_dt_acc + diff_df_acc)
     
     return harmonic_mean
 
 
 class Evaluator:
-    def __init__(self, config, test_label, test_pred, df_label, df_pred, dr_label=None, dr_pred=None, df_mask=None, tokenizer=None, metric_names=['accuracy']):
-        # self.model = model
-        self.config = config
+    def __init__(self, unlearn_config, metric_names=['accuracy']):
+        self.unlearn_config = unlearn_config
         self.metric_names = metric_names
-
-        self.orig_test_acc = orig_test_acc
-        self.random_acc = random_acc
-        self.test_label = test_label
-        self.test_pred = test_pred
-        self.df_label = df_label
-        self.df_pred = df_pred
-        self.dr_pred = dr_pred
-        self.dr_label = dr_label
-        self.tokenizer = tokenizer
-
-        self.test_pred = np.argmax(test_pred, axis=1)
-        self.df_pred = np.argmax(df_pred, axis=1)
-        if dr_pred is not None:
-            self.dr_pred = np.argmax(dr_pred, axis=1)
 
         self.metrics = {}
         self.evaluator = {}
         for metric_name in self.metric_names:
             self.evaluator[metric_name] = evaluate.load(metric_name)
 
-        # if os.path.exists(f'checkpoint/text/{config.data_name}_{config.seed}/pred_logit_train.pt'):
-        #     self.dtrain_logit = torch.load(f'checkpoint/text/{config.data_name}_{config.seed}/pred_logit_train.pt', map_location='cpu')
-
-        # if os.path.exists(f'checkpoint/text/{config.data_name}_{config.seed}/pred_logit_validation.pt'):
-        #     self.dvalidation_logit = torch.load(f'checkpoint/text/{config.data_name}_{config.seed}/pred_logit_validation.pt', map_location='cpu')
-
-    def compute(self):
-        self.get_test_performance()
-        self.get_df_performance()
-        if self.dr_pred is not None:
-            self.get_knowledge_gap()
-            self.get_dr_performance()
-
+    def compute(self, dt_pred, dt_label, df_pred, df_label, dr_pred=None, dr_label=None):
         for metric_name in self.metric_names:
-            dt_acc = self.metrics['test_' + metric_name]
+            self.get_task_performance(dt_pred, dt_label, 'dt', metric_name)
+            self.get_task_performance(df_pred, df_label, 'df', metric_name)
+            
+            if dr_pred is not None:
+                self.get_task_performance(dr_pred, dr_label, 'dr', metric_name)
+                self.get_knowledge_gap(dr_pred, dr_label, df_pred, df_label)
+                # self.get_zero_retrain_score()
+                self.get_mia_score()
+
+            dt_acc = self.metrics['dt_' + metric_name]
             df_acc = self.metrics['df_' + metric_name]
-            orig_dt_acc = orig_acc[self.unlearn_config.data_name]['dt']
+            orig_dt_acc = orig_acc[self.unlearn_config.data_name][self.unlearn_config.backbone]['dt']
             random_acc = orig_acc[self.unlearn_config.data_name]['random']
 
+            # Use this metric for model selection
             self.metrics['unlearn_overall_' + metric_name] = harmonic_mean(dt_acc, df_acc, orig_dt_acc, random_acc)
-            if self.dr_pred is not None:
-                self.metrics['unlearn_overall_' + metric_name] = (self.metrics['unlearn_overall_' + metric_name] + self.metrics['knowledge_gap']) / 3
+
+            if dr_pred is not None:
+                self.metrics['unlearn_overall_' + metric_name] = (
+                    self.metrics['unlearn_overall_' + metric_name] + self.metrics['knowledge_gap']
+                ) / 3
             else:
                 self.metrics['unlearn_overall_' + metric_name] = self.metrics['unlearn_overall_' + metric_name] / 2
 
         return self.metrics
 
-    def get_test_performance(self):
-        for metric_name in self.metric_names:
-            evaluator = self.evaluator[metric_name]
-            metric_val = evaluator.compute(references=self.test_label, predictions=self.test_pred)
-            if metric_name == 'rouge':
-                metric_name = 'rougeL'
-            self.metrics['test_' + metric_name] = metric_val[metric_name]
+    def get_task_performance(self, logits, label, subset='test', metric_name='accuracy'):
+        evaluator = self.evaluator[metric_name]
+        metric_val = evaluator.compute(references=label, predictions=np.argmax(logits, axis=1))
+        if metric_name == 'rouge':
+            metric_name = 'rougeL'
+        self.metrics[subset + '_' + metric_name] = metric_val[metric_name]
 
-    def get_df_performance(self):
-        for metric_name in self.metric_names:
-            evaluator = self.evaluator[metric_name]
-            metric_val = evaluator.compute(references=self.df_label, predictions=self.df_pred)
-            if metric_name == 'rouge':
-                metric_name = 'rougeL'
-            self.metrics['df_' + metric_name] = metric_val[metric_name]
-
-    def get_dr_performance(self):
-        for metric_name in self.metric_names:
-            evaluator = self.evaluator[metric_name]
-            metric_val = evaluator.compute(references=self.dr_label, predictions=self.dr_pred)
-            if metric_name == 'rouge':
-                metric_name = 'rougeL'
-            self.metrics['dr_' + metric_name] = metric_val[metric_name]
-
-    def get_knowledge_gap(self):
-        df_size = self.df_label.shape[0]
+    def get_knowledge_gap(self, dr_pred, dr_label, df_pred, df_label):
+        df_size = df_label.shape[0]
         label = [1] * df_size + [0] * df_size
 
         gap = []
-        all_idx = np.arange(self.dr_label.shape[0])
+        all_idx = np.arange(dr_label.shape[0])
         for _ in range(500):
             sel_idx = np.random.choice(all_idx, df_size, replace=False)
-            logit = np.hstack([self.dr_pred[sel_idx], self.df_pred])
+            logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
             auc = roc_auc_score(label, logit)
             gap.append(auc)
-        
+
         self.metrics['knowledge_gap'] = np.mean(gap)
 
+    def get_zero_retrain_score(self, dr_pred, dr_label, df_pred, df_label):
+        pass
+
+    def get_mia_score(self,):
+        pass
 
 
 class TextGenEvaluator(Evaluator):
-    def __init__(self, config, test_label, test_pred, df_label, df_pred, dr_label=None, dr_pred=None, df_mask=None, tokenizer=None, metric_names=['accuracy']):
+    def __init__(self, unlearn_config, test_label, test_pred, df_label, df_pred, dr_label=None, dr_pred=None, df_mask=None, tokenizer=None, metric_names=['accuracy']):
         # self.model = model
-        self.config = config
+        self.unlearn_config = unlearn_config
         self.metric_names = metric_names
 
         self.test_label = test_label

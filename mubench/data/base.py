@@ -57,7 +57,7 @@ def find_data_files(data_name):
 
     return None
 
-def load_unlearn_data(unlearn_config):
+def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=None):
     # Dictionary to map dataset names to their respective load functions
     dataset_loaders = {
         "cifar100": load_cifar100,
@@ -83,6 +83,15 @@ def load_unlearn_data(unlearn_config):
     # Prepare Df, Dr, method-specific training set, and unlearning eval set
     raw_datasets = prepare_unlearning_data(unlearn_config, raw_datasets)
 
+    if train_transforms is not None and eval_transforms is not None:
+        for split in raw_datasets.keys():
+            if 'train' in split:
+                print(f'Set transform for {split} as {train_transforms}')
+                raw_datasets[split].set_transform(train_transforms)
+            else:
+                print(f'Set transform for {split} as {eval_transforms}')
+                raw_datasets[split].set_transform(eval_transforms)
+
     return raw_datasets
 
 def load_cifar100():
@@ -95,7 +104,7 @@ def load_cifar100():
 def load_imdb():
     raw_datasets = load_dataset('imdb')
     ood = load_dataset('rotten_tomatoes')
-    raw_datasets['ood_eval'] = concatenate_datasets([ood['train'], ood['validation'], ood['test']])
+    raw_datasets['ood'] = concatenate_datasets([ood['train'], ood['validation'], ood['test']])
 
     return raw_datasets
 
@@ -188,8 +197,8 @@ def prepare_unlearning_data(unlearn_config, raw_datasets, label_col='label', is_
     df_data, dr_data = prepare_df_dr(unlearn_config, raw_datasets['train'])
     
     raw_datasets['orig_train'] = raw_datasets['train']
-    raw_datasets['df_eval'] = df_data
-    raw_datasets['dr_eval'] = dr_data
+    raw_datasets['df'] = df_data
+    raw_datasets['dr'] = dr_data
 
     # if unlearn_config.unlearn_method in ['random_label', 'salul']:
     #     num_labels = len(set(raw_datasets[label_col]))#.names)
