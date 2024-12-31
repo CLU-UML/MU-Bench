@@ -3,32 +3,22 @@ import copy
 import json
 
 
-d = 'imdb'
-backbones = ['bert-base', 'bert-large', 'roberta-base', 'roberta-large', 'distilbert-base', 'electra-base', 'deberta-base', 'albert-base-v2']
+d = 'ddi'
+backbones = ['biobert', 'pubmedbert-abstract', 'pubmedbert-fulltext']
 seeds = [42, 87, 21, 100, 13]
 del_ratio = [2.0, 4.0, 6.0, 8.0, 10.0]
 methods = ['neggrad', 'random_label', 'bad_teaching', 'scrub', 'salun']
 
 
 def get_full_model_name(m):
-    if m.startswith('bert-'):
-        m = m + '-uncased'
+    if 'biobert' in m:
+        m = 'dmis-lab/' + m + '-v1.1'
 
-    elif 'roberta' in m:
-        m = 'FacebookAI/' + m
+    elif 'pubmedbert-abstract' in m:
+        m = 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract'
 
-    elif 'distilbert-' in m:
-        m = 'distilbert/' + m + '-uncased'
-
-    elif 'electra-' in m:
-        m = 'google/' + m + '-discriminator'
-
-    elif 'deberta-' in m:
-        if 'base' in m:
-            m = 'microsoft/deberta-v3-base'
-    
-    elif 'albert-' in m:
-        m = 'albert/' + m
+    elif 'pubmedbert-fulltext' in m:
+        m = 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext'
 
     return m
 
@@ -36,7 +26,7 @@ template = {
     "do_train": True,
     "do_eval": True,
     "max_seq_length": 128,
-    "num_train_epochs": 10,
+    "num_train_epochs": 8,
     "logging_steps": 1000,
     "evaluation_strategy": "epoch",
     "save_strategy": "epoch",
@@ -91,7 +81,7 @@ for b in backbones:
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
-                config['output_dir'] = f'checkpoint/unlearn/{d}/{out_dir}/{out_name}'
+                config['output_dir'] = f'../../checkpoint/unlearn/{d}/{out_dir}/{out_name}'
                 config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
 
 

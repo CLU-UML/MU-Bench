@@ -266,19 +266,6 @@ class ModelArguments:
     )
 
 
-def get_label_list(raw_dataset, split="train") -> List[str]:
-    """Get the list of labels from a mutli-label dataset"""
-
-    if isinstance(raw_dataset[split]["label"][0], list):
-        label_list = [label for sample in raw_dataset[split]["label"] for label in sample]
-        label_list = list(set(label_list))
-    else:
-        label_list = raw_dataset[split].unique("label")
-    # we will treat the label list as a list of string instead of int, consistent with model.config.label2id
-    label_list = [str(label) for label in label_list]
-    return label_list
-
-
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
@@ -426,7 +413,7 @@ def main():
         raw_datasets=raw_datasets,
         args=training_args,
         train_dataset=raw_datasets['train'] if training_args.do_train else None,
-        eval_dataset=raw_datasets['test'] if training_args.do_eval else None,
+        eval_dataset=raw_datasets['validation'] if training_args.do_eval else None,
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=data_collator,

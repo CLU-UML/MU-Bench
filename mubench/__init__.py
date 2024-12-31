@@ -35,6 +35,7 @@ model_map_rev = {
 
 
     # NLVR2
+    'dandelin/vilt-b32-finetuned-nlvr2': 'vilt',
 
 
     # Speech Commands

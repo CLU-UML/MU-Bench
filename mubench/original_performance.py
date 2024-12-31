@@ -1,6 +1,6 @@
 orig_acc = {
     'cifar100': {
-        'random': 1/10,
+        'random': 1/100,
         'resnet-50': {'dt': 0.8328, 'dr': 0.9156, 'ood': 0},
         'swin-tiny': {'dt': 0.8714, 'dr': 0.9957411764705882, 'ood': 0},
         'swin-base': {'dt': 0.9301, 'dr': 9971764705882353, 'ood': 0},
@@ -10,12 +10,20 @@ orig_acc = {
     
     'imdb': {
         'random': 1/2,
-        # 'bert-base': {'dt': 'dr': 'ood':},
+        'bert-base': {'dt': 0.88608, 'dr': 0.99996, 'ood': 0.8090414556368412},
         # 'bert-large': {'dt': 'dr': 'ood':},
-        # 'roberta-base': {'dt': 'dr': 'ood':},
-        # 'roberta-large': {'dt': 'dr': 'ood':},
-        # 'bert-base': {'dt': 'dr': 'ood':},
-    }
+        'roberta-base': {'dt': 0.90164, 'dr': 0.99856, 'ood': 0.8312699305946352},
+        'roberta-large': {'dt': 0.9126, 'dr': 0.99824, 'ood': 0.8437441380604014},
+        'electra-base': {'dt': 0.90932, 'dr': 1.0, 'ood': 0.8552804351903958},
+    },
     
-    # 'nlvr2': {'dt': 'dr': 'random': 1/3},
+    'ddi': {
+        'random': 1/5,
+        'biobert': {'dt': 0.9457662701189643, 'dr': 0.9989326375711575, 'ood': 0},
+    },
+
+    'nlvr2': {
+         'random': 1/3,
+         'vilt': {'dt': 0.765178699583752, 'dr': 0.951767334699501, 'ood': 0.7655667144906744},
+    }
 }

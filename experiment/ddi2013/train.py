@@ -24,7 +24,6 @@ import warnings
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import wandb
 import torch
 import datasets
 import evaluate
@@ -49,10 +48,6 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
-import mubench
-from mubench.args import UnlearningArguments
-from mubench.trainer import get_trainer
-from mubench.data.base import load_unlearn_data
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.32.0")
@@ -62,6 +57,15 @@ require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/text
 
 logger = logging.getLogger(__name__)
 
+
+model_map_rev = {
+    'bert-base-uncased': 'bert-base',
+    'FacebookAI/roberta-base': 'roberta-base',
+    'distilbert/distilbert-base-uncased': 'distilbert-base',
+    'google/electra-base-discriminator': 'electra-base',
+    'microsoft/deberta-v3-base': 'deberta-base',
+    'albert/albert-base-v2': 'albert-base-v2'
+}
 
 @dataclass
 class DataTrainingArguments:
@@ -284,13 +288,23 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, UnlearningArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args, unlearn_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args, unlearn_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    import wandb
+    import mubench
+    from mubench.data.base import load_ddi2013
+    training_args.report_to = ['wandb']
+    project = 'MU-Bench'
+    group = 'Original Models'
+    display_name = f'DDI-{mubench.model_map_rev[model_args.model_name_or_path]}'
+    run_id = f'original-DDI-{mubench.model_map_rev[model_args.model_name_or_path]}'
+    wandb.init(project=project, group=group, name=display_name, config=training_args, id=run_id)
 
     if model_args.use_auth_token is not None:
         warnings.warn("The `use_auth_token` argument is deprecated and will be removed in v4.34.", FutureWarning)
@@ -320,33 +334,12 @@ def main():
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-
-    ## Config unlearning
-    unlearn_args.data_name = data_args.dataset_name
-    unlearn_args.random_seed = training_args.seed
-    unlearn_args.backbone = mubench.model_map_rev[model_args.model_name_or_path]
-    unlearn_args.use_lora = False
-    unlearn_args.use_cl = False
-    unlearn_config = unlearn_args
-    
-    training_args.metric_for_best_model = 'unlearn_overall_' + training_args.metric_for_best_model
-    if unlearn_args.unlearn_method in ['bad_teaching']:
-        training_args.remove_unused_columns = False
-
-    # Wandb
-    # training_args.report_to = ['wandb']
-    # project = 'Unlearning Benchmark'
-    # group = unlearn_args.data_name + '-' + unlearn_args.backbone
-    # name = unlearn_args.unlearn_method + '-' + str(unlearn_args.random_seed)
-    # run_id = '-'.join([unlearn_args.data_name, unlearn_args.backbone, unlearn_args.unlearn_method, str(unlearn_args.random_seed)])
-    # wandb.init(project=project, group=group, name=name, config=unlearn_args, id=run_id, resume='allow')
-
     # Log on each process the small summary:
     logger.warning(
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
         + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
     )
-    # logger.info(f"Training/evaluation parameters {training_args}")
+    logger.info(f"Training/evaluation parameters {training_args}")
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -366,12 +359,83 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    # Dataset
-    raw_datasets = load_unlearn_data(unlearn_config)
+    # Load dataset
+    dataset = load_ddi2013()
 
-    # Model
-    tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path)
-    padding = "max_length"
+    # So we build the label list from the union of labels in train/val/test.
+    label_list = get_label_list(dataset, split="train")
+    for split in ["validation", "test"]:
+        if split in dataset:
+            val_or_test_labels = get_label_list(dataset, split=split)
+            diff = set(val_or_test_labels).difference(set(label_list))
+            if len(diff) > 0:
+                # add the labels that appear in val/test but not in train, throw a warning
+                logger.warning(
+                    f"Labels {diff} in {split} set but not in training set, adding them to the label list"
+                )
+                label_list += list(diff)
+    # if label is -1, we throw a warning and remove it from the label list
+    for label in label_list:
+        if label == -1:
+            logger.warning("Label -1 found in label list, removing it.")
+            label_list.remove(label)
+
+    label_list.sort()
+    num_labels = len(label_list)
+    if num_labels <= 1:
+        raise ValueError("You need more than one label to do classification.")
+
+    # Load pretrained model and tokenizer
+    # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
+    # download model & vocab.
+    config = AutoConfig.from_pretrained(
+        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        num_labels=num_labels,
+        finetuning_task="text-classification",
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        trust_remote_code=model_args.trust_remote_code,
+    )
+
+    config.problem_type = "single_label_classification"
+    logger.info("setting problem type to single label classification")
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir,
+        use_fast=model_args.use_fast_tokenizer,
+        revision=model_args.model_revision,
+        trust_remote_code=model_args.trust_remote_code,
+    )
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_args.model_name_or_path,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        trust_remote_code=model_args.trust_remote_code,
+        ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
+    )
+
+
+    # Padding strategy
+    if data_args.pad_to_max_length:
+        padding = "max_length"
+    else:
+        # We will pad later, dynamically at batch creation, to the max sequence length in each batch
+        padding = False
+
+    # for training ,we will update the config with label infos,
+    # if do_train is not set, we will use the label infos in the config
+    label_to_id = {v: i for i, v in enumerate(label_list)}
+    # update config with label infos
+    if model.config.label2id != label_to_id:
+        logger.warning(
+            "The label2id key in the model config.json is not equal to the label2id key of this "
+            "run. You can ignore this if you are doing finetuning."
+        )
+    model.config.label2id = label_to_id
+    model.config.id2label = {id: label for label, id in config.label2id.items()}
 
     if data_args.max_seq_length > tokenizer.model_max_length:
         logger.warning(
@@ -379,6 +443,12 @@ def main():
             f"model ({tokenizer.model_max_length}). Using max_seq_length={tokenizer.model_max_length}."
         )
     max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
+
+    def multi_labels_to_ids(labels: List[str]) -> List[float]:
+        ids = [0.0] * len(label_to_id)  # BCELoss requires float as target type
+        for label in labels:
+            ids[label_to_id[label]] = 1.0
+        return ids
 
     def preprocess_function(examples):
         if data_args.text_column_names is not None:
@@ -390,11 +460,16 @@ def main():
                     examples["sentence"][i] += data_args.text_column_delimiter + examples[column][i]
         # Tokenize the texts
         result = tokenizer(examples["sentence"], padding=padding, max_length=max_seq_length, truncation=True)
+        # if label_to_id is not None and "label" in examples:
+        #     if is_multi_label:
+        #         result["label"] = [multi_labels_to_ids(l) for l in examples["label"]]
+        #     else:
+        #         result["label"] = [(label_to_id[str(l)] if l != -1 else -1) for l in examples["label"]]
         return result
 
     # Running the preprocessing pipeline on all the datasets
     with training_args.main_process_first(desc="dataset map pre-processing"):
-        raw_datasets = raw_datasets.map(
+        dataset = dataset.map(
             preprocess_function,
             batched=True,
             load_from_cache_file=not data_args.overwrite_cache,
@@ -402,6 +477,7 @@ def main():
         )
 
     metric = evaluate.load('accuracy')
+    logger.info(f"Using metric {data_args.metric_name} for evaluation.")
 
     def compute_metrics(p: EvalPrediction):
         preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
@@ -421,16 +497,14 @@ def main():
         data_collator = None
 
     # Initialize our Trainer
-    trainer_cls = get_trainer(unlearn_config.unlearn_method)
-    trainer = trainer_cls(
-        raw_datasets=raw_datasets,
+    trainer = Trainer(
+        model=model,
         args=training_args,
-        train_dataset=raw_datasets['train'] if training_args.do_train else None,
-        eval_dataset=raw_datasets['test'] if training_args.do_eval else None,
+        train_dataset=dataset['train'] if training_args.do_train else None,
+        eval_dataset=dataset['test'] if training_args.do_eval else None,
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        unlearn_config=unlearn_config,
     )
 
     # Training
@@ -440,26 +514,32 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
-        train_result = trainer.unlearn(resume_from_checkpoint=checkpoint)
+        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        metrics = train_result.metrics
         trainer.save_model()  # Saves the tokenizer too for easy upload
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
         trainer.save_state()
-        if train_result is not None:
-            trainer.log_metrics("train", train_result.metrics)
-            trainer.save_metrics("train", train_result.metrics)
 
     # Evaluation
     if training_args.do_eval:
-        logger.info("*** Evaluate Unlearning ***")
-        metrics = trainer.evaluate_unlearn()
-        trainer.log_metrics('unlearn_final', metrics)
-        trainer.save_metrics('unlearn_final', metrics)
 
-    # kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-classification"}
+        logger.info("*** Test ***")
+        metrics = trainer.evaluate(eval_dataset=dataset['test'], metric_key_prefix='test')
+        trainer.log_metrics("test", metrics)
+        trainer.save_metrics("test", metrics)
 
-    # if training_args.push_to_hub:
-    #     trainer.push_to_hub(**kwargs)
-    # else:
-    #     trainer.create_model_card(**kwargs)
+        logger.info("*** Dr ***")
+        metrics = trainer.evaluate(eval_dataset=dataset['train'], metric_key_prefix='dr')
+        trainer.log_metrics("dr", metrics)
+        trainer.save_metrics("dr", metrics)
+
+    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-classification"}
+
+    if training_args.push_to_hub:
+        trainer.push_to_hub(**kwargs)
+    else:
+        trainer.create_model_card(**kwargs)
 
 
 def _mp_fn(index):

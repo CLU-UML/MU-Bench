@@ -126,17 +126,22 @@ def load_ddi2013():
 
     return raw_datasets
 
-def load_nlvr2(name):
+def load_nlvr2():
     raw_datasets = load_dataset(
-        f'./data/{name}/annotations',
-        data_files={
-            'train': f'./data/{name}/annotations/train.json',
-            'validation': f'./data/{name}/annotations/dev.json',
-            'test': f'./data/{name}/annotations/test.json',
-            'ood': f'./data/{name}/annotations/test2.json',
-        })
+        'jialicheng/nlvr2',
+        data_files={'train': 'train.json', 'validation': 'dev.json', 'test': 'test.json', 'ood': 'test2.json'}
+    )
 
-    return DatasetDict(raw_datasets)
+    def mapping(examples):
+        label2id = {'False': 0, 'True': 1}
+        id2label = {0: 'False', 1: 'True'}
+        examples['label'] = [label2id[i] for i in examples['label']]
+    
+        return examples
+
+    raw_datasets = raw_datasets.map(mapping, batched=True)
+
+    return raw_datasets
 
 def load_speech_commands():
     return load_dataset('superb', 'ks')

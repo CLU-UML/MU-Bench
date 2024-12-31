@@ -9,7 +9,7 @@ seeds = [42, 87, 21, 100, 13]
 del_ratio = [2.0, 4.0, 6.0, 8.0, 10.0]
 backbones = ['resnet-18', 'resnet-34', 'resnet-50', 'vit-base', 'vit-large', 
              'swin-tiny', 'swin-base', 'mobilenet_v1', 'mobilenet_v2', 'convnext-base-224', 'convnext-base-224-22k']
-methods = ['retrain', 'neggrad', 'random_label', 'bad_teaching', 'scrub', 'salul']
+methods = ['retrain', 'neggrad', 'random_label', 'bad_teaching', 'scrub', 'salun']
 
 
 def get_full_model_name(m):
@@ -98,6 +98,9 @@ for b in backbones:
                     config['learning_rate'] *= 10
 
                 if m == 'bad_teaching':
+                    config['learning_rate'] *= 10
+
+                if m == 'salun':
                     config['learning_rate'] *= 10
                 
                 config['model_name_or_path'] = get_full_model_name(b)

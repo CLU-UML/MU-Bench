@@ -31,13 +31,19 @@ class UnlearningArguments:
         default=None, 
     )
     use_cl: bool = field(
-        default=False, metadata={"help": "Whether to freeze the feature encoder layers of the model."}
+        default=False, metadata={"help": "Whether to use curriculum learning."}
     )
     use_lora: bool = field(
-        default=False, metadata={"help": "Whether to freeze the feature encoder layers of the model."}
+        default=False, metadata={"help": "Whether to use LoRA."}
     )
     lora_ratio: int = field(
-        default=10, metadata={"help": "Whether to freeze the feature encoder layers of the model."}
+        default=10, metadata={"help": "Ratio of LoRA parameters in percentage."}
+    )
+    use_mode_connectivity: bool = field(
+        default=False, metadata={"help": "Whether to find mode connectivity curves with two unlearned models."}
+    )
+    mc_curve_type: str = field(
+        default='linear', metadata={"help": "Type of mode connectivity curves."}
     )
 
     def __post_init__(self):
