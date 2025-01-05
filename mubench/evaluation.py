@@ -2,7 +2,8 @@ import os
 import evaluate
 import numpy as np
 import nltk
-import scipy.spatial as ssp
+from scipy.spatial.distance import jensenshannon 
+from scipy.special import softmax 
 from sklearn.metrics import roc_auc_score
 from .original_performance import orig_acc
 
@@ -117,10 +118,10 @@ class Evaluator:
         for _ in range(500):
             # Generate probability for incompetent teacher
             logits = np.random.rand(*df_pred.shape)
-            random_prob = ssp.softmax(logits, dim=1)
+            random_prob = softmax(logits, 1)
 
-            df_prob = ssp.softmax(df_pred, dim=1)
-            dis = ssp.distance.jensenshannon(df_prob, random_prob, axis=0)
+            df_prob = softmax(df_pred, 1)
+            dis = jensenshannon(df_prob, random_prob, axis=0)
             div = dis ** 2
             zrf = 1 - div.mean()
             zrfs.append(zrf)
