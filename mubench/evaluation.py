@@ -2,7 +2,7 @@ import os
 import evaluate
 import numpy as np
 import nltk
-from scipy.spatial import distance
+import scipy.spatial as ssp
 from sklearn.metrics import roc_auc_score
 from .original_performance import orig_acc
 
@@ -106,26 +106,21 @@ class Evaluator:
         for _ in range(500):
             sel_idx = np.random.choice(all_idx, df_size, replace=False)
             label = dr_label[sel_idx].tolist() + [(i+1) % num_classes for i in dr_label[sel_idx].tolist()]  # Corrupt labels for Df
-            logit = np.hstack([dr_pred[sel_idx], df_pred])
+            logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
             auc = roc_auc_score(label, logit)
             gap.append(auc)
 
         self.metrics['knowledge_gap'] = np.mean(gap)
 
     def get_zero_retrain_forgetting_score(self, df_pred):
-        def generate_random_prob(num_classes):
-            '''Generate probability for incompetent teacher'''
-            logits = torch.rand(num_classes)
-            prob = torch.softmax(logits, dim=0)
-            return prob
-
-        num_samples, num_classes = df_pred.shape
-
         zrfs = []
         for _ in range(500):
-            prob_incompetent_teacher = torch.stack([generate_random_prob(num_classes) for _ in range(num_samples)])
-            df_prob = torch.softmax(df_pred, dim=1)
-            dis = distance.jensenshannon(df_prob, prob_incompetent_teacher, axis=0)
+            # Generate probability for incompetent teacher
+            logits = np.random.rand(*df_pred.shape)
+            random_prob = ssp.softmax(logits, dim=1)
+
+            df_prob = ssp.softmax(df_pred, dim=1)
+            dis = ssp.distance.jensenshannon(df_prob, random_prob, axis=0)
             div = dis ** 2
             zrf = 1 - div.mean()
             zrfs.append(zrf)
