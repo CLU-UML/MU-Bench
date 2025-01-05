@@ -83,6 +83,7 @@ for b in backbones:
                 config['unlearn_method'] = m
                 config['del_ratio'] = dr
                 if m == 'neggrad':
+                    config['num_train_epochs'] = 12
                     if dr == 2.0:
                         config['learning_rate'] /= 5
                     else:
