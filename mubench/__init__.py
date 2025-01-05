@@ -4,6 +4,8 @@ from .utils import load_base_model
 from .trainer import get_trainer
 
 
+num_classes = {'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+
 ## Mapping of base model names (short name to full name in HuggingFace)
 model_map_rev = {
     # CIFAR100

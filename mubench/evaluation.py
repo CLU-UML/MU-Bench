@@ -2,6 +2,7 @@ import os
 import evaluate
 import numpy as np
 import nltk
+from scipy.spatial import distance
 from sklearn.metrics import roc_auc_score
 from .original_performance import orig_acc
 
@@ -25,6 +26,10 @@ def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
     if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
         return 0
 
+    # df_acc cannot drop below random_acc
+    if df_acc < random_acc and (random_acc - df_acc) / random_acc > 0.2:
+        return 0
+
     # Convert dt and df_acc
     diff_dt_acc = 1 - abs(dt_acc - orig_dt_acc)
     diff_df_acc = 1 - abs(df_acc - random_acc)
@@ -44,7 +49,7 @@ class Evaluator:
         for metric_name in self.metric_names:
             self.evaluator[metric_name] = evaluate.load(metric_name)
 
-    def compute(self, dt_pred, dt_label, df_pred, df_label, dr_pred=None, dr_label=None):
+    def compute(self, dt_pred, dt_label, df_pred, df_label, dr_pred=None, dr_label=None, ood_pred=None, ood_label=None):
         for metric_name in self.metric_names:
             self.get_task_performance(dt_pred, dt_label, 'dt', metric_name)
             self.get_task_performance(df_pred, df_label, 'df', metric_name)
@@ -52,8 +57,11 @@ class Evaluator:
             if dr_pred is not None:
                 self.get_task_performance(dr_pred, dr_label, 'dr', metric_name)
                 self.get_knowledge_gap(dr_pred, dr_label, df_pred, df_label)
-                # self.get_zero_retrain_score()
+                self.get_zero_retrain_forgetting_score(df_pred)
                 self.get_mia_score()
+
+            if ood_pred is not None:
+                self.get_task_performance(ood_pred, ood_label, 'ood', metric_name)
 
             dt_acc = self.metrics['dt_' + metric_name]
             df_acc = self.metrics['df_' + metric_name]
@@ -63,12 +71,12 @@ class Evaluator:
             # Use this metric for model selection
             self.metrics['unlearn_overall_' + metric_name] = harmonic_mean(dt_acc, df_acc, orig_dt_acc, random_acc)
 
-            if dr_pred is not None:
-                self.metrics['unlearn_overall_' + metric_name] = (
-                    self.metrics['unlearn_overall_' + metric_name] + self.metrics['knowledge_gap']
-                ) / 3
-            else:
-                self.metrics['unlearn_overall_' + metric_name] = self.metrics['unlearn_overall_' + metric_name] / 2
+            # if dr_pred is not None:
+            #     self.metrics['unlearn_overall_' + metric_name] = (
+            #         self.metrics['unlearn_overall_' + metric_name] + self.metrics['knowledge_gap']
+            #     ) / 3
+            # else:
+            #     self.metrics['unlearn_overall_' + metric_name] = self.metrics['unlearn_overall_' + metric_name] / 2
 
         return self.metrics
 
@@ -80,21 +88,49 @@ class Evaluator:
         self.metrics[subset + '_' + metric_name] = metric_val[metric_name]
 
     def get_knowledge_gap(self, dr_pred, dr_label, df_pred, df_label):
-        df_size = df_label.shape[0]
-        label = [1] * df_size + [0] * df_size
+        # df_size = df_label.shape[0]
+        # label = [1] * df_size + [0] * df_size
+
+        # gap = []
+        # all_idx = np.arange(dr_label.shape[0])
+        # for _ in range(500):
+        #     sel_idx = np.random.choice(all_idx, df_size, replace=False)
+        #     logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
+        #     auc = roc_auc_score(label, logit)
+        #     gap.append(auc)
+
+        df_size, num_classes = df_pred.shape
 
         gap = []
         all_idx = np.arange(dr_label.shape[0])
         for _ in range(500):
             sel_idx = np.random.choice(all_idx, df_size, replace=False)
-            logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
+            label = dr_label[sel_idx].tolist() + [(i+1) % num_classes for i in dr_label[sel_idx].tolist()]  # Corrupt labels for Df
+            logit = np.hstack([dr_pred[sel_idx], df_pred])
             auc = roc_auc_score(label, logit)
             gap.append(auc)
 
         self.metrics['knowledge_gap'] = np.mean(gap)
 
-    def get_zero_retrain_score(self, dr_pred, dr_label, df_pred, df_label):
-        pass
+    def get_zero_retrain_forgetting_score(self, df_pred):
+        def generate_random_prob(num_classes):
+            '''Generate probability for incompetent teacher'''
+            logits = torch.rand(num_classes)
+            prob = torch.softmax(logits, dim=0)
+            return prob
+
+        num_samples, num_classes = df_pred.shape
+
+        zrfs = []
+        for _ in range(500):
+            prob_incompetent_teacher = torch.stack([generate_random_prob(num_classes) for _ in range(num_samples)])
+            df_prob = torch.softmax(df_pred, dim=1)
+            dis = distance.jensenshannon(df_prob, prob_incompetent_teacher, axis=0)
+            div = dis ** 2
+            zrf = 1 - div.mean()
+            zrfs.append(zrf)
+        
+        self.metrics['zrf'] = np.mean(zrfs)
 
     def get_mia_score(self,):
         pass

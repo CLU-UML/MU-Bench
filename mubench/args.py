@@ -45,6 +45,9 @@ class UnlearningArguments:
     mc_curve_type: str = field(
         default='linear', metadata={"help": "Type of mode connectivity curves."}
     )
+    mc_num_bends: int = field(
+        default=3, metadata={"help": "Number of bends for mode connectivity curve."}
+    )
 
     def __post_init__(self):
         self.unlearn_method = self.unlearn_method.lower()

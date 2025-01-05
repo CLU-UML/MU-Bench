@@ -36,7 +36,7 @@ template = {
     "do_train": True,
     "do_eval": True,
     "max_seq_length": 128,
-    "num_train_epochs": 10,
+    "num_train_epochs": 6,
     "logging_steps": 1000,
     "evaluation_strategy": "epoch",
     "save_strategy": "epoch",
@@ -86,12 +86,13 @@ for b in backbones:
                     config['learning_rate'] /= 5
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 10
-                
+                    config['learning_rate'] *= 2
+                    config['num_train_epochs'] = 10
+
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
-                config['output_dir'] = f'checkpoint/unlearn/{d}/{out_dir}/{out_name}'
+                config['output_dir'] = f'../../checkpoint/unlearn/{d}/{out_dir}/{out_name}'
                 config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
 
 

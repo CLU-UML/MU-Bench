@@ -17,7 +17,7 @@ from transformers.trainer_utils import speed_metrics
 
 from mubench.evaluation import Evaluator, TextGenEvaluator
 from ..superloss import SuperLoss
-from ..utils import load_base_model
+from ..utils import load_base_model, load_base_model_mode_connectivity
 
 from transformers.trainer_utils import (
     PREFIX_CHECKPOINT_DIR,
@@ -53,6 +53,8 @@ def calculate_superloss(b_loss, batch):
     return sl_loss
 
 
+num_classes = {'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+
 class UnlearningTrainer(Trainer):
     def __init__(self, **kwargs):
         self.raw_datasets = kwargs['raw_datasets']  # Used for computing performance on Df and Dr
@@ -62,10 +64,14 @@ class UnlearningTrainer(Trainer):
         self.unlearn_evaluator = Evaluator(self.unlearn_config)
 
         # Load original model
-        kwargs['tokenizer'], kwargs['model'] = load_base_model(self.unlearn_config)
+        if 'model' not in kwargs:
+            kwargs['tokenizer'], kwargs['model'] = load_base_model(self.unlearn_config)
+
+            if self.unlearn_config.use_mode_connectivity:
+                kwargs['tokenizer'], kwargs['model'] = load_base_model_mode_connectivity(self.unlearn_config)
 
         super().__init__(**kwargs)
-        self.num_labels = self.model.config.num_labels if hasattr(self.model.config, 'num_labels') else None
+        self.num_labels = num_classes[self.unlearn_config.data_name] if self.unlearn_config.data_name in num_classes else None
         self.unlearn_time = None
         self.method_specific_setup()
 
@@ -178,6 +184,12 @@ class UnlearningTrainer(Trainer):
         return output
 
     def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval", split_name=None):
+        if self.unlearn_config.use_mode_connectivity:
+            return self.evaluate_mode_connectivity_curve()
+            # t = torch.tensor(0.5)   # Use the middle point to evaluate
+            # interpolated_params = self.model.interpolate_weights(t)
+            # self.model.final_model.load_state_dict(interpolated_params, strict=False)
+
         # memory metrics - must set up as early as possible
         self._memory_tracker.start()
 
@@ -270,10 +282,31 @@ class UnlearningTrainer(Trainer):
                         unlearn_metrics['unlearn_time'] = log['unlearn_time']
             else:
                 unlearn_metrics['unlearn_time'] = -1
-        self.log_metrics('unlearn_final', unlearn_metrics)
-        self.save_metrics('unlearn_final', unlearn_metrics)
+        # self.log_metrics('unlearn_final', unlearn_metrics)
+        # self.save_metrics('unlearn_final', unlearn_metrics)
 
         return unlearn_metrics
+
+    def evaluate_mode_connectivity_curve(self):
+        # curve = self.model
+        all_metric = []
+        ts = np.linspace(0, 1, 5)
+        for t in tqdm(ts, desc='Points on Curve'):
+            t = torch.tensor(t)
+            interpolated_params = self.model.interpolate_weights(t)
+            self.model.final_model.load_state_dict(interpolated_params, strict=False)
+
+            # self.model = curve.final_model
+            metrics = self.evaluate_unlearn()
+            all_metric.append(metrics)
+
+        import pandas as pd
+        all_metric = pd.DataFrame(all_metric)
+        all_metric.to_csv(os.path.join(self.args.output_dir, 'eval_curve.csv'))
+        print('aaa', all_metric.mean(0).to_dict())
+
+        return all_metric.mean(0).to_dict()
+
 
 class UnlearningSeq2SeqTrainer(UnlearningTrainer, Seq2SeqTrainer):
 

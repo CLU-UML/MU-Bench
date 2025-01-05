@@ -1,3 +1,6 @@
+*ipynb
+transformers_for_cl/
+result/
 data/
 data_processing/
 checkpoint

@@ -60,6 +60,7 @@ def find_data_files(data_name):
 def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=None):
     # Dictionary to map dataset names to their respective load functions
     dataset_loaders = {
+        "cifar10": load_cifar10,
         "cifar100": load_cifar100,
         "imdb": load_imdb,
         "ddi": load_ddi2013,
@@ -91,6 +92,12 @@ def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=Non
             else:
                 print(f'Set transform for {split} as {eval_transforms}')
                 raw_datasets[split].set_transform(eval_transforms)
+
+    return raw_datasets
+
+def load_cifar10():
+    raw_datasets = load_dataset('cifar10')
+    raw_datasets = raw_datasets.rename_column('img', 'image')
 
     return raw_datasets
 
