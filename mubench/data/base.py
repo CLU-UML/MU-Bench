@@ -179,11 +179,12 @@ def _corrupt_label(df_data, dr_data, label_col, is_generative_task=False, seed=N
         num_labels = len(set(dr_label))
         corrupted_label = [(i + 1) % num_labels for i in original_label]
 
-    df_data = df_data.rename_column(label_col, 'orig_label')
-    df_data = df_data.add_column(label_col, corrupted_label)
+    assert all([i != j for i, j in zip(corrupted_label, original_label)])
+    # assert all([i != j for i, j in zip(df_data[label_col], df_data['orig_label'])])
 
-    assert all([i != j for i, j in zip(df_data[label_col], original_label)])
-    assert all([i != j for i, j in zip(df_data[label_col], df_data['orig_label'])])
+    df_data = df_data.remove_columns([label_col])
+    # df_data = df_data.rename_column(label_col, 'orig_label')
+    df_data = df_data.add_column(label_col, corrupted_label)
 
     return df_data
 

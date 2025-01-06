@@ -2,35 +2,22 @@ import os
 import copy
 import time
 import math
-import wandb
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import grad
 from torch.utils.data import DataLoader
 from typing import *
 from transformers import Trainer, Seq2SeqTrainer
-from transformers.trainer_pt_utils import nested_detach
 from transformers.trainer_utils import speed_metrics
+from transformers.trainer_utils import EvalLoopOutput
+from transformers.utils import logging
 
-from mubench.evaluation import Evaluator, TextGenEvaluator
+from ..evaluation import Evaluator, TextGenEvaluator
 from ..superloss import SuperLoss
 from ..utils import load_base_model, load_base_model_mode_connectivity
-
-from transformers.trainer_utils import (
-    PREFIX_CHECKPOINT_DIR,
-    BestRun,
-    EvalLoopOutput,
-    EvalPrediction,
-    HPSearchBackend,
-    HubStrategy,
-    IntervalStrategy,
-    PredictionOutput,
-    RemoveColumnsCollator,
-)
-from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -185,10 +172,14 @@ class UnlearningTrainer(Trainer):
 
     def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval", split_name=None):
         if self.unlearn_config.use_mode_connectivity:
-            return self.evaluate_mode_connectivity_curve()
-            # t = torch.tensor(0.5)   # Use the middle point to evaluate
-            # interpolated_params = self.model.interpolate_weights(t)
-            # self.model.final_model.load_state_dict(interpolated_params, strict=False)
+            # Only use Dt and Df for evaluation during training
+            # Use all splits in the final testing
+            metrics = self.evaluate_mode_connectivity_curve(['test', 'df'], 5)
+            if metric_key_prefix is not None:
+                metrics[metric_key_prefix + '_' + self.args.metric_for_best_model] = metrics[self.args.metric_for_best_model]
+                metrics['unlearn_time'] = self.unlearn_time
+
+            return metrics
 
         # memory metrics - must set up as early as possible
         self._memory_tracker.start()
@@ -247,14 +238,14 @@ class UnlearningTrainer(Trainer):
 
         return output.metrics
 
-    def evaluate_unlearn(self, ignore_keys=None):
+    def evaluate_unlearn(self, eval_splits=['test', 'df', 'dr', 'ood'], ignore_keys=None):
         # memory metrics - must set up as early as possible
         self._memory_tracker.start()
         start_time = time.time()
 
         # Performance on Dt, Df, Dr, OOD
         all_logit_and_label = []
-        for split in ['test', 'df', 'dr', 'ood']:
+        for split in eval_splits:
             if split not in self.raw_datasets:
                 continue
             eval_dataloader = self.get_eval_dataloader(self.raw_datasets[split])
@@ -287,23 +278,21 @@ class UnlearningTrainer(Trainer):
 
         return unlearn_metrics
 
-    def evaluate_mode_connectivity_curve(self):
-        # curve = self.model
+    def evaluate_mode_connectivity_curve(self, eval_splits=['test', 'df', 'dr', 'ood'], num_points=61):
         all_metric = []
-        ts = np.linspace(0, 1, 5)
+        ts = np.linspace(0, 1, num_points)
         for t in tqdm(ts, desc='Points on Curve'):
             t = torch.tensor(t)
             interpolated_params = self.model.interpolate_weights(t)
             self.model.final_model.load_state_dict(interpolated_params, strict=False)
+            print(f'Eval with interpolated weights, t = {t} and weight = {self.model.curve(t).detach().tolist()}')
 
-            # self.model = curve.final_model
-            metrics = self.evaluate_unlearn()
-            all_metric.append(metrics)
+            metrics = self.evaluate_unlearn(eval_splits)
+            all_metric.append(copy.deepcopy(metrics))
 
-        import pandas as pd
         all_metric = pd.DataFrame(all_metric)
-        all_metric.to_csv(os.path.join(self.args.output_dir, 'eval_curve.csv'))
-        print('aaa', all_metric.mean(0).to_dict())
+        all_metric['t'] = ts
+        all_metric.to_csv(os.path.join(self.args.output_dir, 'eval_curve.csv'), index=None)
 
         return all_metric.mean(0).to_dict()
 

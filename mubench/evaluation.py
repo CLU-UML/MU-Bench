@@ -22,15 +22,6 @@ def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
     Returns:
         float: The harmonic mean of dt_acc and abs(df_acc - random_acc).
     """
-
-    # dt_acc cannot drop by 20% compared to orig_dt_acc
-    if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
-        return 0
-
-    # df_acc cannot drop below random_acc
-    if df_acc < random_acc and (random_acc - df_acc) / random_acc > 0.2:
-        return 0
-
     # Convert dt and df_acc
     diff_dt_acc = 1 - abs(dt_acc - orig_dt_acc)
     diff_df_acc = 1 - abs(df_acc - random_acc)
@@ -70,7 +61,20 @@ class Evaluator:
             random_acc = orig_acc[self.unlearn_config.data_name]['random']
 
             # Use this metric for model selection
-            self.metrics['unlearn_overall_' + metric_name] = harmonic_mean(dt_acc, df_acc, orig_dt_acc, random_acc)
+            overall_acc = harmonic_mean(dt_acc, df_acc, orig_dt_acc, random_acc)
+
+            # We need some extra restrictions to prevent Dt / Df from dropping significantly
+            if not self.unlearn_config.use_mode_connectivity:
+
+                # dt_acc cannot drop by 20% compared to orig_dt_acc
+                if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
+                    overall_acc = 0
+
+                # df_acc cannot drop below random_acc
+                if df_acc < random_acc and (random_acc - df_acc) / random_acc > 0.2:
+                    overall_acc = 0
+
+            self.metrics['unlearn_overall_' + metric_name] = overall_acc
 
             # if dr_pred is not None:
             #     self.metrics['unlearn_overall_' + metric_name] = (

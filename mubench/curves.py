@@ -81,7 +81,6 @@ class CurveModel(nn.Module):
     def interpolate_weights(self, t):
         """Interpolate the model parameters based on the weights."""
         weights = self.curve(t)
-        print('aaaa', t, weights)
 
         # Placeholder for interpolated weights
         interpolated_params = {n: torch.zeros_like(p) for n, p in self.models[0].named_parameters()}
@@ -101,7 +100,7 @@ class CurveModel(nn.Module):
 
         return interpolated_params
 
-    def forward(self, t=None, **kwargs):
+    def forward(self, **kwargs):
         if self.training:
             t = torch.rand(1)
             interpolated_params = self.interpolate_weights(t)
