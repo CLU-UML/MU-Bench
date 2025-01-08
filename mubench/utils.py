@@ -27,6 +27,7 @@ def load_base_model(unlearn_config):
     """
 
     dataset_to_model_map = {
+        "cifar10": (AutoImageProcessor, AutoModelForImageClassification),
         "cifar100": (AutoImageProcessor, AutoModelForImageClassification),
         "imdb": (AutoTokenizer, AutoModelForSequenceClassification),
         "ddi": (AutoTokenizer, AutoModelForSequenceClassification),
@@ -99,8 +100,9 @@ def load_base_model_mode_connectivity(unlearn_config):
         model: The loaded Hugging Face model.
     """
 
-    num_labels_map = {'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+    num_labels_map = {'cifar100': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
     dataset_to_model_map = {
+        "cifar10": (AutoImageProcessor, AutoModelForImageClassification),
         "cifar100": (AutoImageProcessor, AutoModelForImageClassification),
         "imdb": (AutoTokenizer, AutoModelForSequenceClassification),
         "ddi": (AutoTokenizer, AutoModelForSequenceClassification),

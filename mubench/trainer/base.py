@@ -40,7 +40,7 @@ def calculate_superloss(b_loss, batch):
     return sl_loss
 
 
-num_classes = {'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+num_classes = {'cifar10': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
 
 class UnlearningTrainer(Trainer):
     def __init__(self, **kwargs):
