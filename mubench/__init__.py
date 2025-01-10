@@ -49,6 +49,10 @@ model_map_rev = {
     'openai/whisper-tiny': 'whisper-tiny',
     'openai/whisper-base': 'whisper-base',
 
+    # TOFU
+    'microsoft/phi-1_5': 'phi-1.5',
+    'NousResearch/Llama-2-7b-chat-hf': 'llama2-7b',
+
 }
 
 model_map = {j: i for i, j in model_map_rev.items()}

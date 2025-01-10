@@ -37,6 +37,7 @@ def load_base_model(unlearn_config):
         "samsum": (AutoTokenizer, AutoModelForSeq2SeqLM),
         "celeb_profile": (AutoTokenizer, AutoModelForCausalLM),
         "tiny_imagenet": (AutoImageProcessor, AutoModelForImageClassification),
+        "tofu": (AutoTokenizer, AutoModelForCausalLM),
     }
 
     if unlearn_config.data_name == 'nlvr2':
@@ -52,6 +53,12 @@ def load_base_model(unlearn_config):
         model_class = dataset_to_model_map[unlearn_config.backbone]
 
         final_ckpt_path = 'dandelin/vilt-b32-finetuned-nlvr2'
+
+    elif unlearn_config.data_name == 'tofu':
+        tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-1_5')
+        model = AutoModelForCausalLM.from_pretrained(f'locuslab/tofu_ft_{unlearn_config.backbone}')
+
+        return tokenizer, model
 
     else:
         # Check if the dataset is in the map
@@ -79,6 +86,10 @@ def load_base_model(unlearn_config):
 
     tokenizer = tokenizer_class.from_pretrained(final_ckpt_path)
     model = model_class.from_pretrained(final_ckpt_path)
+
+    # Hot fix for https://discuss.huggingface.co/t/help-with-llama-2-finetuning-setup/50035
+    if hasattr(model, 'generation_config') and model.generation_config is not None:
+        model.generation_config.do_sample = True
 
     if unlearn_config.data_name == 'nlvr2':
         return None, model

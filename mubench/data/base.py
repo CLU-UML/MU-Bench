@@ -9,6 +9,7 @@ from datasets import load_dataset, concatenate_datasets, interleave_datasets, Da
 from datasets import Dataset as HFDataset
 from torch.utils.data import Dataset
 import mubench
+from .tofu import *
 
 
 def find_data_files(data_name):
@@ -73,25 +74,48 @@ def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=Non
         "celeb_profile": load_celeb_profile,
         "tiny_imagenet": load_tiny_imagenet
     }
-    
-    # Check if the data_name exists in the dictionary
-    if unlearn_config.data_name not in dataset_loaders:
-        raise ValueError(f"Dataset '{unlearn_config.data_name}' not found. Available datasets are: {', '.join(dataset_loaders.keys())}")
 
-    # Load data, train, valid, test
-    raw_datasets = dataset_loaders[unlearn_config.data_name]()
+    if 'tofu' not in unlearn_config.data_name:
+        # Check if the data_name exists in the dictionary
+        if unlearn_config.data_name not in dataset_loaders:
+            raise ValueError(f"Dataset '{unlearn_config.data_name}' not found. Available datasets are: {', '.join(dataset_loaders.keys())}")
 
-    # Prepare Df, Dr, method-specific training set, and unlearning eval set
-    raw_datasets = prepare_unlearning_data(unlearn_config, raw_datasets)
+        # Load data, train, valid, test
+        raw_datasets = dataset_loaders[unlearn_config.data_name]()
 
-    if train_transforms is not None and eval_transforms is not None:
-        for split in raw_datasets.keys():
-            if 'train' in split:
-                print(f'Set transform for {split} as {train_transforms}')
-                raw_datasets[split].set_transform(train_transforms)
-            else:
-                print(f'Set transform for {split} as {eval_transforms}')
-                raw_datasets[split].set_transform(eval_transforms)
+        # Prepare Df, Dr, method-specific training set, and unlearning eval set
+        raw_datasets = prepare_unlearning_data(unlearn_config, raw_datasets)
+
+        if train_transforms is not None and eval_transforms is not None:
+            for split in raw_datasets.keys():
+                if 'train' in split:
+                    print(f'Set transform for {split} as {train_transforms}')
+                    raw_datasets[split].set_transform(train_transforms)
+                else:
+                    print(f'Set transform for {split} as {eval_transforms}')
+                    raw_datasets[split].set_transform(eval_transforms)
+
+    else:   # TOFU
+        raw_datasets = {}
+        raw_datasets['df'] = load_dataset("locuslab/TOFU", f'forget{int(float(unlearn_config.del_ratio)):>02d}')["train"]
+        raw_datasets['dr'] = load_dataset("locuslab/TOFU", f'retain{int(float(100-unlearn_config.del_ratio)):>02d}')["train"]
+
+        raw_datasets = DatasetDict(raw_datasets)
+
+        tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-1_5')
+
+        def process(examples):
+            out = [convert_raw_data_to_model_format(tokenizer, 500, i, j, 'phi-1.5') 
+                for i, j in zip(examples['question'], examples['answer'])]
+            output = {
+                'input_ids': [i[0] for i in out],
+                'attention_mask': [i[2] for i in out],
+                'label_ids': [i[1] for i in out],
+            }
+            return output
+
+        raw_datasets = raw_datasets.map(process, batched=True, remove_columns=['question', 'answer'])
+        raw_datasets = method_specific_transformation(unlearn_config, raw_datasets, raw_datasets['df'], raw_datasets['dr'])
 
     return raw_datasets
 
@@ -166,6 +190,9 @@ def load_celeb_profile():
 def load_tiny_imagenet():
     pass
 
+def load_tofu():
+    return load_dataset("locuslab/TOFU", "full")
+
 def _corrupt_label(df_data, dr_data, label_col, is_generative_task=False, seed=None):
     rng = np.random.default_rng(seed)
     original_label = df_data[label_col]
@@ -205,6 +232,40 @@ def prepare_df_dr(unlearn_config, train_dataset):
     assert dr_data.shape[0] + df_data.shape[0] == train_dataset.shape[0]
 
     return df_data, dr_data
+
+def method_specific_transformation(unlearn_config, raw_datasets, df_data, dr_data):
+    if unlearn_config.unlearn_method in ['retrain', 'fisher', 'l-codec', 'scrub']:
+        raw_datasets['train'] = copy.deepcopy(dr_data)
+
+    elif unlearn_config.unlearn_method in ['neggrad']:
+        raw_datasets['train'] = copy.deepcopy(df_data)
+
+    elif unlearn_config.unlearn_method in ['random_label', 'salun']:
+        df_train = copy.deepcopy(df_data)
+
+        if unlearn_config.unlearn_method == 'salun':
+            raw_datasets['df_train'] = df_data
+
+        dr_train = copy.deepcopy(dr_data)
+        df_corrupted = _corrupt_label(df_train, dr_train, label_col, is_generative_task, unlearn_config.random_seed)
+        
+        raw_datasets['train'] = concatenate_datasets([df_corrupted, dr_data])
+
+
+    elif unlearn_config.unlearn_method in ['bad_teaching']:     # We use "is_df" to denote the membership of samples
+        df_train = copy.deepcopy(df_data)
+
+        all_idx = np.arange(dr_data.shape[0])
+        rng = np.random.default_rng(unlearn_config.random_seed)
+        sel_idx = np.random.choice(all_idx, size=df_data.shape[0], replace=False)
+
+        dr_subset = datasets.Dataset.from_dict(raw_datasets['train'][sel_idx])
+        dr_subset = dr_subset.add_column('is_df', [0,] * df_data.shape[0])
+        df_data = df_data.add_column('is_df', [1,] * df_data.shape[0])
+
+        raw_datasets['train'] = interleave_datasets([dr_subset, df_data], stopping_strategy='all_exhausted')
+    
+    return raw_datasets
 
 def prepare_unlearning_data(unlearn_config, raw_datasets, label_col='label', is_generative_task=False, do_method_specific_transformation=True):
     df_data, dr_data = prepare_df_dr(unlearn_config, raw_datasets['train'])

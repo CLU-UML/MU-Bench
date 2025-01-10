@@ -93,28 +93,20 @@ class Evaluator:
         self.metrics[subset + '_' + metric_name] = metric_val[metric_name]
 
     def get_knowledge_gap(self, dr_pred, dr_label, df_pred, df_label):
-        # df_size = df_label.shape[0]
-        # label = [1] * df_size + [0] * df_size
-
-        # gap = []
-        # all_idx = np.arange(dr_label.shape[0])
-        # for _ in range(500):
-        #     sel_idx = np.random.choice(all_idx, df_size, replace=False)
-        #     logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
-        #     auc = roc_auc_score(label, logit)
-        #     gap.append(auc)
-
-        df_size, num_classes = df_pred.shape
+        df_size = df_label.shape[0]
+        binary_label = [1] * df_size + [0] * df_size
 
         gap = []
         all_idx = np.arange(dr_label.shape[0])
         for _ in range(500):
             sel_idx = np.random.choice(all_idx, df_size, replace=False)
-            label = dr_label[sel_idx].tolist() + [(i+1) % num_classes for i in dr_label[sel_idx].tolist()]  # Corrupt labels for Df
-            logit = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
-            auc = roc_auc_score(label, logit)
+            label = dr_label[sel_idx].tolist() + df_label.tolist()
+            pred = np.hstack([np.argmax(dr_pred[sel_idx], axis=1), np.argmax(df_pred, axis=1)])
+            binary_pred = np.array(label == pred).astype(int)
+            auc = roc_auc_score(binary_label, binary_pred)
             gap.append(auc)
 
+        print('D_f | D_r', np.mean(gap))
         self.metrics['knowledge_gap'] = np.mean(gap)
 
     def get_zero_retrain_forgetting_score(self, df_pred):
@@ -130,6 +122,7 @@ class Evaluator:
             zrf = 1 - div.mean()
             zrfs.append(zrf)
         
+        print('ZRF', np.mean(zrfs))
         self.metrics['zrf'] = np.mean(zrfs)
 
     def get_mia_score(self,):
