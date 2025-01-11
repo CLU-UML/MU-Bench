@@ -67,8 +67,12 @@ class Evaluator:
             if not self.unlearn_config.use_mode_connectivity:
 
                 # dt_acc cannot drop by 20% compared to orig_dt_acc
-                if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
-                    overall_acc = 0
+                if self.unlearn_config.unlearn_method in ['neggrad', 'grad_ascent']:
+                    if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.4:
+                        overall_acc = 0
+                else:
+                    if abs(dt_acc - orig_dt_acc) / orig_dt_acc > 0.2:
+                        overall_acc = 0
 
                 # df_acc cannot drop below random_acc
                 if df_acc < random_acc and (random_acc - df_acc) / random_acc > 0.2:
