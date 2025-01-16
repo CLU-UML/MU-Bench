@@ -69,6 +69,12 @@ To add a new dataset to `mubench`, please fill out this [Google Form](https://do
 pip install mubench
 ```
 
+OR
+```Bash
+git clone https://github.com/CLU-UML/MU-Bench
+```
+
+
 ## Usage
 
 #### Case 1: Access standardized data and base models from `mubench`
