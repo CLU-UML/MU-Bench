@@ -102,3 +102,37 @@ for b in backbones:
 
                 with open(f'configs/unlearn/{out_dir}/{out_name}.json', 'w') as f:
                     json.dump(config, f, indent=4)
+
+# Unlearn CL
+for b in backbones:
+    for s in seeds:
+        for dr in del_ratio:
+            for m in methods:
+                config = copy.deepcopy(template)
+                out_dir = f'{b}/{m}/{dr}'
+                out_name = f'{s}'
+                os.makedirs(f'configs/unlearn_cl/{out_dir}', exist_ok=True)
+
+                config['unlearn_method'] = m
+                config['del_ratio'] = dr
+                if m == 'neggrad':
+                    config['num_train_epochs'] = 12
+                    if dr == 2.0:
+                        config['learning_rate'] /= 5
+                    else:
+                        config['learning_rate'] /= 10
+
+                if m == 'bad_teaching':
+                    config['learning_rate'] *= 2
+                    config['num_train_epochs'] = 10
+
+                config['model_name_or_path'] = get_full_model_name(b)
+                config['dataset_name'] = d
+                config['seed'] = s
+                config['output_dir'] = f'../../checkpoint/unlearn_cl/{d}/{out_dir}/{out_name}'
+                config['use_cl'] = True
+                config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
+
+
+                with open(f'configs/unlearn_cl/{out_dir}/{out_name}.json', 'w') as f:
+                    json.dump(config, f, indent=4)
