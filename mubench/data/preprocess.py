@@ -77,7 +77,7 @@ def preprocess_for_image_classification(unlearn_config, raw_datasets):
     def train_transforms(example_batch):
         """Apply _train_transforms across a batch."""
         example_batch["pixel_values"] = [
-            _train_transforms(pil_img.convert("RGB")) for pil_img in example_batch[data_args.image_column_name]
+            _train_transforms(pil_img.convert("RGB")) for pil_img in example_batch['image']
         ]
 
         if unlearn_args.unlearn_method in ['bad_teaching']:
@@ -86,7 +86,7 @@ def preprocess_for_image_classification(unlearn_config, raw_datasets):
 
     def val_transforms(example_batch):
         """Apply _val_transforms across a batch."""
-        example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch[data_args.image_column_name]]
+        example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch['image']]
         return example_batch
 
     for split in raw_datasets.keys():
