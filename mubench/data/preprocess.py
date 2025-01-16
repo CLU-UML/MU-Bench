@@ -80,7 +80,7 @@ def preprocess_for_image_classification(unlearn_config, raw_datasets):
             _train_transforms(pil_img.convert("RGB")) for pil_img in example_batch['image']
         ]
 
-        if unlearn_args.unlearn_method in ['bad_teaching']:
+        if 'is_df' in example_batch:
             example_batch['is_df'] = list(example_batch['is_df'])
         return example_batch
 
