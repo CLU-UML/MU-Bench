@@ -1,4 +1,13 @@
 import torch
+from torchvision.transforms import (
+    CenterCrop,
+    Compose,
+    Normalize,
+    RandomHorizontalFlip,
+    RandomResizedCrop,
+    Resize,
+    ToTensor,
+)
 from transformers import (
     TrainingArguments,
     AutoImageProcessor,
