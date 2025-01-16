@@ -12,10 +12,10 @@ from torch.utils.data import DataLoader
 from typing import *
 from transformers import Trainer, Seq2SeqTrainer
 from transformers.trainer_utils import speed_metrics
-from transformers.trainer_utils import EvalLoopOutput
 from transformers.utils import logging
 
-from ..evaluation import Evaluator, TextGenEvaluator, all_compute_metrics
+import mubench
+from ..evaluation import Evaluator, TextGenEvaluator, compute_metrics_map
 from ..superloss import SuperLoss
 from ..data.preprocess import all_dataset_collators
 from ..utils import load_base_model, load_base_model_mode_connectivity
@@ -23,37 +23,31 @@ from ..utils import load_base_model, load_base_model_mode_connectivity
 logger = logging.get_logger(__name__)
 
 
-class EvalLoopOutput(NamedTuple):
-    predictions: Union[np.ndarray, Tuple[np.ndarray]]
-    label_ids: Optional[Union[np.ndarray, Tuple[np.ndarray]]]
-    metrics: Optional[Dict[str, float]]
-    num_samples: Optional[int]
-
-
-super_loss = SuperLoss('sl', lam=10, mode='avg')
-
-def calculate_superloss(b_loss, batch):
-    conf, tau, tau_adjusted = super_loss(b_loss, None, None)
-    tau = [tau] * b_loss.shape[0]
-    tau_adjusted = [tau_adjusted] * b_loss.shape[0]
-    sl_loss = b_loss * conf
-
-    return sl_loss
-
-
-num_classes = {'cifar10': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
-
 class UnlearningTrainer(Trainer):
     def __init__(self, **kwargs):
+        # Datasets
         self.raw_datasets = kwargs['raw_datasets']  # Used for computing performance on Df and Dr
         kwargs.pop('raw_datasets')
+        kwargs['train_dataset'] = kwargs['train_dataset'] if 'train_dataset' in kwargs else self.raw_datasets['train']
+        if 'eval_dataset' not in kwargs:
+            if 'validation' in self.raw_datasets:
+                kwargs['eval_dataset'] = self.raw_datasets['validation']
+            elif 'test' in self.raw_datasets:
+                kwargs['eval_dataset'] = self.raw_datasets['test']
+                logger.warning('Using test set as eval_dataset.')
+            else:
+                logger.warning('No eval_dataset provided.')
+
         self.unlearn_config = kwargs['unlearn_config']
         kwargs.pop('unlearn_config')
         self.unlearn_evaluator = Evaluator(self.unlearn_config)
 
+        # Initialize SuperLoss calculator for Curriculum Learning
+        self.super_loss = SuperLoss('sl', lam=10, mode='avg') if self.unlearn_config.use_cl else None
+
         # Load original model
         if 'model' not in kwargs:
-            kwargs['tokenizer'], kwargs['model'] = load_base_model(self.unlearn_config)
+            kwargs['model'] = load_base_model(self.unlearn_config)
 
             if self.unlearn_config.use_mode_connectivity:
                 kwargs['tokenizer'], kwargs['model'] = load_base_model_mode_connectivity(self.unlearn_config)
@@ -62,10 +56,10 @@ class UnlearningTrainer(Trainer):
             kwargs['data_collator'] = all_dataset_collators[self.unlearn_config.data_name] if self.unlearn_config.data_name in all_dataset_collators else None
 
         if 'compute_metrics' not in kwargs:
-            kwargs['compute_metrics'] = all_compute_metrics[self.unlearn_config.data_name] if self.unlearn_config.data_name in all_compute_metrics else None
+            kwargs['compute_metrics'] = compute_metrics_map[self.unlearn_config.data_name] if self.unlearn_config.data_name in compute_metrics_map else None
 
         super().__init__(**kwargs)
-        self.num_labels = num_classes[self.unlearn_config.data_name] if self.unlearn_config.data_name in num_classes else None
+        self.num_labels = mubench.num_classes_map[self.unlearn_config.data_name] if self.unlearn_config.data_name in mubench.num_classes_map else None
         self.unlearn_time = None
         self.method_specific_setup()
 
@@ -81,6 +75,14 @@ class UnlearningTrainer(Trainer):
 
         return self.raw_datasets[split_name]
 
+    def calculate_superloss(self, b_loss, batch):
+        conf, tau, tau_adjusted = self.super_loss(b_loss, None, None)
+        tau = [tau] * b_loss.shape[0]
+        tau_adjusted = [tau_adjusted] * b_loss.shape[0]
+        sl_loss = b_loss * conf
+
+        return sl_loss
+
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         Compute loss wrapper for unlearning method FineTune
@@ -94,7 +96,6 @@ class UnlearningTrainer(Trainer):
         """
         Compute loss wrapper for unlearning method FineTune
         """
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
         if return_outputs:
             loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
         else:
@@ -106,13 +107,12 @@ class UnlearningTrainer(Trainer):
         """
         Compute loss wrapper for curriculum learning (per-sample loss)
         """
-        # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
         if return_outputs:
             per_sample_loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
         else:
             per_sample_loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        loss = calculate_superloss(per_sample_loss, inputs).mean()
+        loss = self.calculate_superloss(per_sample_loss, inputs).mean()
 
         return (loss, outputs) if return_outputs else loss
 

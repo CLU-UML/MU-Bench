@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.autograd import grad
 from typing import *
 
-from .base import calculate_superloss, UnlearningTrainer
+from .base import UnlearningTrainer
 
 from transformers.utils import logging
 

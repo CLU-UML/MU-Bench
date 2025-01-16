@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.autograd import grad
 from typing import *
 
-from .base import calculate_superloss, UnlearningTrainer
+from .base import UnlearningTrainer
 
 from transformers.utils import logging
 
@@ -41,7 +41,7 @@ class SCRUBTrainer(UnlearningTrainer):
 
                 kl_loss = nn.KLDivLoss(reduction='none')
                 loss = kl_loss(outputs.logits, ori_outputs.logits)
-                loss = calculate_superloss(loss, inputs).mean()
+                loss = self.calculate_superloss(loss, inputs).mean()
                 loss = -1 * loss
 
             else:
@@ -52,7 +52,7 @@ class SCRUBTrainer(UnlearningTrainer):
 
                 kl_loss = nn.KLDivLoss(reduction='none')
                 loss = outputs.loss + kl_loss(outputs.logits, ori_outputs.logits).mean(axis=1)
-                loss = calculate_superloss(loss, inputs).mean()
+                loss = self.calculate_superloss(loss, inputs).mean()
 
         else:
             outputs = model(**inputs)

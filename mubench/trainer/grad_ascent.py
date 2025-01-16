@@ -12,7 +12,7 @@ from torch.autograd import grad
 from torch.utils.data import DataLoader
 from typing import *
 
-from .base import calculate_superloss, UnlearningTrainer
+from .base import UnlearningTrainer
 
 from transformers.utils import logging
 
@@ -30,7 +30,7 @@ class GradAscentTrainer(UnlearningTrainer):
         """
         outputs = model(**inputs)
         loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-        loss = calculate_superloss(loss, inputs).mean()
+        loss = self.calculate_superloss(loss, inputs).mean()
         loss = -1 * loss
 
         return (loss, outputs) if return_outputs else loss

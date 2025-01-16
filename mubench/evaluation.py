@@ -19,7 +19,7 @@ def compute_metrics(p):
     return result
 
 
-all_compute_metrics = {
+compute_metrics_map = {
     'cifar10': compute_metrics,
     'cifar100': compute_metrics,
     'imdb': compute_metrics,

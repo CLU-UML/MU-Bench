@@ -11,7 +11,7 @@ from torch.autograd import grad
 from typing import *
 from transformers import Trainer, Seq2SeqTrainer
 
-from .base import calculate_superloss, UnlearningTrainer
+from .base import UnlearningTrainer
 
 from transformers.utils import logging
 

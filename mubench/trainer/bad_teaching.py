@@ -11,7 +11,7 @@ from torch.autograd import grad
 from typing import *
 from transformers import Trainer, Seq2SeqTrainer
 
-from .base import calculate_superloss, UnlearningTrainer
+from .base import UnlearningTrainer
 
 from transformers.utils import logging
 
@@ -93,8 +93,8 @@ class BadTeachingTrainer(UnlearningTrainer):
             dr_loss = kl_loss(dr_outputs.logits, good_outputs.logits)
             df_loss = kl_loss(df_outputs.logits, bad_outputs.logits)
 
-            dr_loss = calculate_superloss(dr_loss, dr_inputs).mean()
-            df_loss = calculate_superloss(df_loss, df_inputs).mean()
+            dr_loss = self.calculate_superloss(dr_loss, dr_inputs).mean()
+            df_loss = self.calculate_superloss(df_loss, df_inputs).mean()
 
             loss = dr_loss + df_loss
             outputs = df_outputs

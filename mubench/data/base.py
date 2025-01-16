@@ -10,6 +10,7 @@ from datasets import Dataset as HFDataset
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
 import mubench
+from .preprocess import tokenize_data
 from .tofu import *
 
 

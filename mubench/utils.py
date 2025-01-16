@@ -1,16 +1,4 @@
 import os
-from transformers import (
-    AutoModelForImageClassification,
-    AutoModelForSequenceClassification,
-    AutoModelForAudioClassification,
-    ViltForImagesAndTextClassification,
-    AutoModelForCausalLM,
-    AutoModelForVideoClassification,
-    AutoModelForSeq2SeqLM,
-    AutoImageProcessor,
-    AutoTokenizer,
-    AutoProcessor,
-)
 import mubench
 from .curves import *
 
@@ -27,31 +15,15 @@ def load_base_model(unlearn_config):
         model: The loaded Hugging Face model.
     """
 
-    dataset_to_model_map = {
-        "cifar10": (AutoImageProcessor, AutoModelForImageClassification),
-        "cifar100": (AutoImageProcessor, AutoModelForImageClassification),
-        "imdb": (AutoTokenizer, AutoModelForSequenceClassification),
-        "ddi": (AutoTokenizer, AutoModelForSequenceClassification),
-        "ddi2013": (AutoTokenizer, AutoModelForSequenceClassification),
-        "speech_commands": (AutoTokenizer, AutoModelForAudioClassification),
-        "ucf101": (AutoTokenizer, AutoModelForVideoClassification),
-        "samsum": (AutoTokenizer, AutoModelForSeq2SeqLM),
-        "celeb_profile": (AutoTokenizer, AutoModelForCausalLM),
-        "tiny_imagenet": (AutoImageProcessor, AutoModelForImageClassification),
-        "tofu": (AutoTokenizer, AutoModelForCausalLM),
-    }
+    model_cls_map = mubench.model_cls_map if not unlearn_config.use_cl else mubench.model_cls_cl_map
 
     if unlearn_config.data_name == 'nlvr2':
-        dataset_to_model_map = {
-            "vilt": ViltForImagesAndTextClassification,
-        }
-
         # Check if the dataset is in the map
-        if unlearn_config.backbone not in dataset_to_model_map:
+        if unlearn_config.backbone not in model_cls_map:
             raise ValueError(f"Backbone name '{unlearn_config.backbone}' not recognized.")
 
         tokenizer_class = AutoProcessor
-        model_class = dataset_to_model_map[unlearn_config.backbone]
+        model_class = model_cls_map[unlearn_config.backbone]
 
         final_ckpt_path = 'dandelin/vilt-b32-finetuned-nlvr2'
 
@@ -79,10 +51,10 @@ def load_base_model(unlearn_config):
 
     else:
         # Check if the dataset is in the map
-        if unlearn_config.data_name not in dataset_to_model_map:
+        if unlearn_config.data_name not in model_cls_map:
             raise ValueError(f"Dataset name '{unlearn_config.data_name}' not recognized.")
 
-        tokenizer_class, model_class = dataset_to_model_map[unlearn_config.data_name]
+        model_class = model_cls_map[unlearn_config.data_name]
 
         # Check if a local checkpoint exists
         base_model_path = f'{unlearn_config.data_name}/{unlearn_config.backbone}'
@@ -101,17 +73,13 @@ def load_base_model(unlearn_config):
         if final_ckpt_path is None:
             final_ckpt_path = f'jialicheng/{unlearn_config.data_name}-{unlearn_config.backbone}'
 
-    tokenizer = tokenizer_class.from_pretrained(final_ckpt_path)
     model = model_class.from_pretrained(final_ckpt_path)
 
     # Hot fix for https://discuss.huggingface.co/t/help-with-llama-2-finetuning-setup/50035
     if hasattr(model, 'generation_config') and model.generation_config is not None:
         model.generation_config.do_sample = True
 
-    if unlearn_config.data_name == 'nlvr2':
-        return None, model
-
-    return tokenizer, model
+    return model
 
 def init_curve(curve_type):
     pass

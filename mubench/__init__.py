@@ -4,8 +4,8 @@ from .utils import load_base_model
 from .trainer import get_trainer
 
 
-num_classes = {'cifar10': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
-metrics = {'cifar10': 'accuracy', 'cifar100': 'accuracy', 'imdb': 'accuracy', 'ddi': 'accuracy', 'nlvr2': 'accuracy', 'samsum': 'rougeL'}
+num_classes_map = {'cifar10': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+metric_name_map = {'cifar10': 'accuracy', 'cifar100': 'accuracy', 'imdb': 'accuracy', 'ddi': 'accuracy', 'nlvr2': 'accuracy', 'samsum': 'rougeL'}
 
 ## Mapping of base model names (short name to full name in HuggingFace)
 model_map_rev = {
@@ -57,3 +57,54 @@ model_map_rev = {
 }
 
 model_map = {j: i for i, j in model_map_rev.items()}
+
+
+# Mapping for model class
+from transformers import (
+    AutoModelForImageClassification,
+    AutoModelForSequenceClassification,
+    AutoModelForAudioClassification,
+    ViltForImagesAndTextClassification,
+    AutoModelForCausalLM,
+    AutoModelForVideoClassification,
+    AutoModelForSeq2SeqLM,
+)
+model_cls_map = {
+    "cifar10": AutoModelForImageClassification,
+    "cifar100": AutoModelForImageClassification,
+    "imdb": AutoModelForSequenceClassification,
+    "ddi": AutoModelForSequenceClassification,
+    "ddi2013": AutoModelForSequenceClassification,
+    "speech_commands": AutoModelForAudioClassification,
+    "ucf101": AutoModelForVideoClassification,
+    "samsum": AutoModelForSeq2SeqLM,
+    "celeb_profile": AutoModelForCausalLM,
+    "tiny_imagenet": AutoModelForImageClassification,
+    "tofu": AutoModelForCausalLM,
+    "vilt": ViltForImagesAndTextClassification,
+}
+
+# Mapping for model class using CL
+from transformers_for_cl import (
+    AutoModelForImageClassification as AutoModelForImageClassificationCL,
+    AutoModelForSequenceClassification as AutoModelForSequenceClassificationCL,
+    AutoModelForAudioClassification as AutoModelForAudioClassificationCL,
+    ViltForImagesAndTextClassification as ViltForImagesAndTextClassificationCL,
+    AutoModelForCausalLM as AutoModelForCausalLMCL,
+    AutoModelForVideoClassification as AutoModelForVideoClassificationCL,
+    AutoModelForSeq2SeqLM as AutoModelForSeq2SeqLMCL,
+)
+
+model_cls_cl_map = {
+    "cifar10": AutoModelForImageClassificationCL,
+    "cifar100": AutoModelForImageClassificationCL,
+    "imdb": AutoModelForSequenceClassificationCL,
+    "ddi": AutoModelForSequenceClassificationCL,
+    "ddi2013": AutoModelForSequenceClassificationCL,
+    "speech_commands": AutoModelForAudioClassificationCL,
+    "ucf101": AutoModelForVideoClassificationCL,
+    "samsum": AutoModelForSeq2SeqLMCL,
+    "celeb_profile": AutoModelForCausalLMCL,
+    "tiny_imagenet": AutoModelForImageClassificationCL,
+    "tofu": AutoModelForCausalLMCL,
+}
