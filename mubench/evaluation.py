@@ -8,6 +8,24 @@ from sklearn.metrics import roc_auc_score
 from .original_performance import orig_acc
 
 
+metric = evaluate.load("accuracy")
+
+def compute_metrics(p):
+    preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+    preds = np.argmax(preds, axis=1)
+    result = metric.compute(predictions=preds, references=p.label_ids)
+    if len(result) > 1:
+        result["combined_score"] = np.mean(list(result.values())).item()
+    return result
+
+
+all_compute_metrics = {
+    'cifar10': compute_metrics,
+    'cifar100': compute_metrics,
+    'imdb': compute_metrics,
+    'ddi': compute_metrics,
+}
+
 def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
     """
     Compute the harmonic mean of performance of dt_acc and abs(df_acc - random_acc).

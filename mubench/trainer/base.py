@@ -15,8 +15,9 @@ from transformers.trainer_utils import speed_metrics
 from transformers.trainer_utils import EvalLoopOutput
 from transformers.utils import logging
 
-from ..evaluation import Evaluator, TextGenEvaluator
+from ..evaluation import Evaluator, TextGenEvaluator, all_compute_metrics
 from ..superloss import SuperLoss
+from ..data.preprocess import all_dataset_collators
 from ..utils import load_base_model, load_base_model_mode_connectivity
 
 logger = logging.get_logger(__name__)
@@ -56,6 +57,12 @@ class UnlearningTrainer(Trainer):
 
             if self.unlearn_config.use_mode_connectivity:
                 kwargs['tokenizer'], kwargs['model'] = load_base_model_mode_connectivity(self.unlearn_config)
+
+        if 'data_collator' not in kwargs:
+            kwargs['data_collator'] = all_dataset_collators[self.unlearn_config.data_name] if self.unlearn_config.data_name in all_dataset_collators else None
+
+        if 'compute_metrics' not in kwargs:
+            kwargs['compute_metrics'] = all_compute_metrics[self.unlearn_config.data_name] if self.unlearn_config.data_name in all_compute_metrics else None
 
         super().__init__(**kwargs)
         self.num_labels = num_classes[self.unlearn_config.data_name] if self.unlearn_config.data_name in num_classes else None

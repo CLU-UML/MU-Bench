@@ -11,6 +11,7 @@ from transformers import (
     AutoTokenizer,
     AutoProcessor,
 )
+import mubench
 from .curves import *
 
 
@@ -55,8 +56,24 @@ def load_base_model(unlearn_config):
         final_ckpt_path = 'dandelin/vilt-b32-finetuned-nlvr2'
 
     elif unlearn_config.data_name == 'tofu':
-        tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-1_5')
-        model = AutoModelForCausalLM.from_pretrained(f'locuslab/tofu_ft_{unlearn_config.backbone}')
+        from peft import LoraConfig, get_peft_model, PeftModel
+
+        tokenizer = AutoTokenizer.from_pretrained(mubench.model_map[unlearn_config.backbone])
+        model = AutoModelForCausalLM.from_pretrained(
+            f'locuslab/tofu_ft_{unlearn_config.backbone}',
+            low_cpu_mem_usage=True,
+            device_map="auto",
+        )
+        config = LoraConfig(
+            r=8, 
+            lora_alpha=32, 
+            target_modules=["q_proj","v_proj"], 
+            lora_dropout=0.05,
+            bias="none", 
+            task_type="CAUSAL_LM"
+        )
+        model = get_peft_model(model, config)
+        model.print_trainable_parameters()
 
         return tokenizer, model
 
@@ -123,6 +140,7 @@ def load_base_model_mode_connectivity(unlearn_config):
         "samsum": (AutoTokenizer, AutoModelForSeq2SeqLM),
         "celeb_profile": (AutoTokenizer, AutoModelForCausalLM),
         "tiny_imagenet": (AutoImageProcessor, AutoModelForImageClassification),
+        "tofu": (AutoTokenizer, AutoModelForCausalLM),
     }
 
     if unlearn_config.data_name == 'nlvr2':

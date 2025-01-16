@@ -20,6 +20,7 @@ logger = logging.get_logger(__name__)
 class SalUnTrainer(UnlearningTrainer):
     def method_specific_setup(self):
         self.salient_mask = None
+        self.salient_mask = self.compute_salient_mask()
 
     # def compute_loss_cl(self, model, inputs, return_outputs=False):
     #     # inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}

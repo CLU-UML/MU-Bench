@@ -3,6 +3,8 @@ from .grad_ascent import GradAscentTrainer
 from .random_labeling import RandomLabelingTrainer
 from .scrub import SCRUBTrainer
 from .salun import SalUnTrainer
+from .grad_diff import GradDiffTrainer
+from .npo import NPOTrainer
 
 
 def get_trainer(trainer_name):
@@ -14,6 +16,8 @@ def get_trainer(trainer_name):
         "random_label": RandomLabelingTrainer,
         "scrub": SCRUBTrainer,
         "salun": SalUnTrainer,
+        "grad_diff": GradDiffTrainer,
+        "npo": NPOTrainer,
     }
 
     # Check if the trainer_name exists in the dictionary

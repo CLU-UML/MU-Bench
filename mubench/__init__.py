@@ -5,6 +5,7 @@ from .trainer import get_trainer
 
 
 num_classes = {'cifar10': 10, 'cifar100': 100, 'imdb': 2, 'ddi': 5, 'nlvr2': 3}
+metrics = {'cifar10': 'accuracy', 'cifar100': 'accuracy', 'imdb': 'accuracy', 'ddi': 'accuracy', 'nlvr2': 'accuracy', 'samsum': 'rougeL'}
 
 ## Mapping of base model names (short name to full name in HuggingFace)
 model_map_rev = {

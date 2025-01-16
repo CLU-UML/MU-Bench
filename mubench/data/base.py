@@ -8,6 +8,7 @@ import datasets
 from datasets import load_dataset, concatenate_datasets, interleave_datasets, DatasetDict
 from datasets import Dataset as HFDataset
 from torch.utils.data import Dataset
+from transformers import AutoTokenizer
 import mubench
 from .tofu import *
 
@@ -58,7 +59,7 @@ def find_data_files(data_name):
 
     return None
 
-def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=None):
+def load_unlearn_data(unlearn_config, tokenize=True):
     # Dictionary to map dataset names to their respective load functions
     dataset_loaders = {
         "cifar10": load_cifar10,
@@ -86,14 +87,8 @@ def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=Non
         # Prepare Df, Dr, method-specific training set, and unlearning eval set
         raw_datasets = prepare_unlearning_data(unlearn_config, raw_datasets)
 
-        if train_transforms is not None and eval_transforms is not None:
-            for split in raw_datasets.keys():
-                if 'train' in split:
-                    print(f'Set transform for {split} as {train_transforms}')
-                    raw_datasets[split].set_transform(train_transforms)
-                else:
-                    print(f'Set transform for {split} as {eval_transforms}')
-                    raw_datasets[split].set_transform(eval_transforms)
+        if tokenize:
+            raw_datasets = tokenize_data(unlearn_config, raw_datasets)
 
     else:   # TOFU
         raw_datasets = {}
@@ -102,20 +97,59 @@ def load_unlearn_data(unlearn_config, train_transforms=None, eval_transforms=Non
 
         raw_datasets = DatasetDict(raw_datasets)
 
-        tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-1_5')
+        tokenizer = AutoTokenizer.from_pretrained(mubench.model_map[unlearn_config.backbone])
+        model_family = unlearn_config.backbone
 
-        def process(examples):
-            out = [convert_raw_data_to_model_format(tokenizer, 500, i, j, 'phi-1.5') 
-                for i, j in zip(examples['question'], examples['answer'])]
-            output = {
-                'input_ids': [i[0] for i in out],
-                'attention_mask': [i[2] for i in out],
-                'label_ids': [i[1] for i in out],
-            }
-            return output
+        if unlearn_config.unlearn_method in ['grad_diff', 'dpo']:
+            def process_train(examples):
+                out_df = [convert_raw_data_to_model_format(tokenizer, 500, i, j, model_family)
+                    for i, j in zip(examples['df_question'], examples['df_answer'])]
+                out_dr = [convert_raw_data_to_model_format(tokenizer, 500, i, j, model_family)
+                    for i, j in zip(examples['dr_question'], examples['dr_answer'])]
+                output = {
+                    'df_input_ids': [i[0] for i in out_df],
+                    'df_attention_mask': [i[2] for i in out_df],
+                    'df_labels': [i[1] for i in out_df],
+                    'dr_input_ids': [i[0] for i in out_dr],
+                    'dr_attention_mask': [i[2] for i in out_dr],
+                    'dr_labels': [i[1] for i in out_dr],
+                }
+                return output
 
-        raw_datasets = raw_datasets.map(process, batched=True, remove_columns=['question', 'answer'])
-        raw_datasets = method_specific_transformation(unlearn_config, raw_datasets, raw_datasets['df'], raw_datasets['dr'])
+        else:
+            def process_train(examples):
+                out = [convert_raw_data_to_model_format(tokenizer, 500, i, j, model_family)
+                    for i, j in zip(examples['question'], examples['answer'])]
+                output = {
+                    'input_ids': [i[0] for i in out],
+                    'attention_mask': [i[2] for i in out],
+                    'label_ids': [i[1] for i in out],
+                }
+                return output
+
+            def process_eval(examples):
+                out = [convert_raw_data_to_model_format(tokenizer, 200, i, j, model_family)
+                    for i, j in zip(examples['question'], examples['answer'])]
+                output = {
+                    'input_ids': [i[0] for i in out],
+                    'attention_mask': [i[2] for i in out],
+                    'label_ids': [i[1] for i in out],
+                }
+                return output
+
+            raw_datasets = method_specific_transformation(unlearn_config, raw_datasets, raw_datasets['df'], raw_datasets['dr'], True, 'answer')
+
+            for split in raw_datasets.keys():
+                if 'train' in split:
+                    print(f'Set transform for {split} as {train_transforms}')
+                    raw_datasets[split] = raw_datasets[split].map(process_train, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
+                else:
+                    print(f'Set transform for {split} as {eval_transforms}')
+                    raw_datasets[split] = raw_datasets[split].map(process_eval, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
+                    min_size = min(300, len(raw_datasets[split]))
+                    raw_datasets[split] = raw_datasets[split].select(list(range(min_size)))
+
+        # raw_datasets = raw_datasets.map(process, batched=True, remove_columns=['question', 'answer'])
 
     return raw_datasets
 
@@ -233,11 +267,11 @@ def prepare_df_dr(unlearn_config, train_dataset):
 
     return df_data, dr_data
 
-def method_specific_transformation(unlearn_config, raw_datasets, df_data, dr_data):
+def method_specific_transformation(unlearn_config, raw_datasets, df_data, dr_data, is_generative_task, label_col='label'):
     if unlearn_config.unlearn_method in ['retrain', 'fisher', 'l-codec', 'scrub']:
         raw_datasets['train'] = copy.deepcopy(dr_data)
 
-    elif unlearn_config.unlearn_method in ['neggrad']:
+    elif unlearn_config.unlearn_method in ['neggrad', 'npo']:
         raw_datasets['train'] = copy.deepcopy(df_data)
 
     elif unlearn_config.unlearn_method in ['random_label', 'salun']:
@@ -264,6 +298,19 @@ def method_specific_transformation(unlearn_config, raw_datasets, df_data, dr_dat
         df_data = df_data.add_column('is_df', [1,] * df_data.shape[0])
 
         raw_datasets['train'] = interleave_datasets([dr_subset, df_data], stopping_strategy='all_exhausted')
+
+    elif unlearn_config.unlearn_method in ['grad_diff', 'dpo']:
+        df_train = copy.deepcopy(df_data)
+
+        all_idx = np.arange(dr_data.shape[0])
+        rng = np.random.default_rng(unlearn_config.random_seed)
+        sel_idx = np.random.choice(all_idx, size=df_data.shape[0], replace=False)
+
+        dr_subset = raw_datasets['dr'].select(sel_idx)
+        dr_subset = dr_subset.rename_columns({i: f'dr_{i}' for i in dr_subset.column_names})
+        df_data = df_data.rename_columns({i: f'df_{i}' for i in df_data.column_names})
+
+        raw_datasets['train'] = concatenate_datasets([dr_subset, df_data], axis=1)
     
     return raw_datasets
 
