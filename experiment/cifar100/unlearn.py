@@ -211,7 +211,6 @@ def main():
     unlearn_args.random_seed = training_args.seed
     unlearn_args.backbone = mubench.model_map_rev[model_args.model_name_or_path]
     unlearn_args.use_lora = False
-    unlearn_args.use_cl = False
     unlearn_config = unlearn_args
     
     training_args.metric_for_best_model = 'unlearn_overall_' + training_args.metric_for_best_model
@@ -251,85 +250,14 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-
-    def collate_fn(examples):
-        pixel_values = torch.stack([example["pixel_values"] for example in examples])
-        labels = torch.tensor([example[data_args.label_column_name] for example in examples])
-        out = {"pixel_values": pixel_values, "labels": labels}
-
-        if 'is_df' in examples[0]:
-            out['is_df'] = torch.tensor([example['is_df'] for example in examples])
-
-        return out
-
-    # Load the accuracy metric from the datasets package
-    metric = evaluate.load("accuracy")
-
-    # Define our compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
-    # predictions and label_ids field) and has to return a dictionary string to float.
-    def compute_metrics(p):
-        """Computes accuracy on a batch of predictions"""
-        return metric.compute(predictions=np.argmax(p.predictions, axis=1), references=p.label_ids)
-    
-    image_processor = AutoImageProcessor.from_pretrained(
-        model_args.image_processor_name or model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
-
-    # Define torchvision transforms to be applied to each image.
-    if "shortest_edge" in image_processor.size:
-        size = image_processor.size["shortest_edge"]
-    else:
-        size = (image_processor.size["height"], image_processor.size["width"])
-    normalize = Normalize(mean=image_processor.image_mean, std=image_processor.image_std)
-    _train_transforms = Compose(
-        [
-            RandomResizedCrop(size),
-            RandomHorizontalFlip(),
-            ToTensor(),
-            normalize,
-        ]
-    )
-    _val_transforms = Compose(
-        [
-            Resize(size),
-            CenterCrop(size),
-            ToTensor(),
-            normalize,
-        ]
-    )
-
-    def train_transforms(example_batch):
-        """Apply _train_transforms across a batch."""
-        example_batch["pixel_values"] = [
-            _train_transforms(pil_img.convert("RGB")) for pil_img in example_batch[data_args.image_column_name]
-        ]
-
-        if unlearn_args.unlearn_method in ['bad_teaching']:
-            example_batch['is_df'] = list(example_batch['is_df'])
-        return example_batch
-
-    def val_transforms(example_batch):
-        """Apply _val_transforms across a batch."""
-        example_batch["pixel_values"] = [_val_transforms(pil_img.convert("RGB")) for pil_img in example_batch[data_args.image_column_name]]
-        return example_batch
-
-
     # Initialize our dataset and prepare it for the 'image-classification' task.
-    raw_datasets = load_unlearn_data(unlearn_config, train_transforms=train_transforms, eval_transforms=val_transforms)
+    raw_datasets = load_unlearn_data(unlearn_config)
 
     # Initalize our trainer
     trainer_cls = get_trainer(unlearn_config.unlearn_method)
     trainer = trainer_cls(
         raw_datasets=raw_datasets,
         args=training_args,
-        train_dataset=raw_datasets["train"] if training_args.do_train else None,
-        eval_dataset=raw_datasets["test"] if training_args.do_eval else None,
-        compute_metrics=compute_metrics,
-        tokenizer=image_processor,
-        data_collator=collate_fn,
         unlearn_config=unlearn_config,
     )
 

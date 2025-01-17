@@ -106,6 +106,7 @@ for b in backbones:
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
+                config['use_cl'] = False
                 config['output_dir'] = f'../../checkpoint/unlearn/{d}/{out_dir}/{out_name}'
                 config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
 
