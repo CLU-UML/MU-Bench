@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # 'mobilenet_v2' 'convnext-base-224' 'swin-base')
-# 'neggrad' 'random_label' 'bad_teaching' 'salun')
 set -e
 declare -a backbone=('resnet-50' 'swin-base')
-declare -a method=('salun')
+declare -a method=('neggrad' 'random_label' 'bad_teaching' 'salun')
 declare -a dfratio=('2.0' '4.0' '6.0' '8.0' '10.0')
 declare -a seed=('42' '87' '21' '13' '100')
 
