@@ -88,7 +88,7 @@ class BadTeachingTrainer(UnlearningTrainer):
             with torch.no_grad():
                 bad_outputs = self.bad_teacher(**df_inputs, return_dict=True)
 
-            kl_loss = nn.KLDivLoss(reduction='none' if self.use_cl else "batchmean")
+            kl_loss = nn.KLDivLoss(reduction='none' if self.unlearn_config.use_cl else "batchmean")
 
             dr_loss = kl_loss(dr_outputs.logits, good_outputs.logits)
             df_loss = kl_loss(df_outputs.logits, bad_outputs.logits)
@@ -192,7 +192,7 @@ class _BadTeachingTrainer(UnlearningTrainer):
         return out
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        if self.use_cl:
+        if self.unlearn_config.use_cl:
             return self.compute_loss_cl(model, inputs, return_outputs)
         else:
             return self.compute_loss_non_cl(model, inputs, return_outputs)
