@@ -49,14 +49,14 @@ class UnlearningTrainer(Trainer):
         if 'model' not in kwargs:
             kwargs['model'] = load_base_model(self.unlearn_config)
 
-            if self.unlearn_config.use_mode_connectivity:
-                kwargs['tokenizer'], kwargs['model'] = load_base_model_mode_connectivity(self.unlearn_config)
-
         if 'data_collator' not in kwargs:
             kwargs['data_collator'] = all_dataset_collators[self.unlearn_config.data_name] if self.unlearn_config.data_name in all_dataset_collators else None
 
         if 'compute_metrics' not in kwargs:
             kwargs['compute_metrics'] = compute_metrics_map[self.unlearn_config.data_name] if self.unlearn_config.data_name in compute_metrics_map else None
+
+        # if self.unlearn_config.use_mode_connectivity:
+        #     self.interpolated_model = self.model.interpolated_model
 
         super().__init__(**kwargs)
         self.num_labels = mubench.num_classes_map[self.unlearn_config.data_name] if self.unlearn_config.data_name in mubench.num_classes_map else None
@@ -115,6 +115,43 @@ class UnlearningTrainer(Trainer):
         loss = self.calculate_superloss(per_sample_loss, inputs).mean()
 
         return (loss, outputs) if return_outputs else loss
+
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        if not self.unlearn_config.use_mode_connectivity:
+            return super().training_step(model, inputs)
+
+        model.train()
+        inputs = self._prepare_inputs(inputs)
+        t = torch.empty(1).normal_(mean=0.5, std=0.1)
+        t = torch.clamp(t, min=0, max=1)
+        inputs['t'] = t
+
+        with self.compute_loss_context_manager():
+            loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+        if self.use_apex:
+            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            self.accelerator.backward(loss)
+
+        #### For Mode Connectivity
+        # Use a higher LR closer to midpoint
+        self.optimizer.param_groups[0]['lr'] = self.optimizer.param_groups[0]['lr'] * (2 * t.item() * (1-t.item()))
+
+        # Copy gradients to the bending points
+        for i in range(self.unlearn_config.mc_num_bends - 2):
+            # print('copy', t)
+            for (n1, p1), (n2, p2) in zip(self.model.models[i].named_parameters(), self.model.final_model.named_parameters()):
+                if n1 == n2:
+                    p1.grad = p2.grad.data
+                else:
+                    print('aaa', n1, n2)
+
+        return loss.detach() / self.args.gradient_accumulation_steps
 
     def unlearn(
         self,
@@ -181,7 +218,7 @@ class UnlearningTrainer(Trainer):
         if self.unlearn_config.use_mode_connectivity:
             # Only use Dt and Df for evaluation during training
             # Use all splits in the final testing
-            metrics = self.evaluate_mode_connectivity_curve(['test', 'df'], 5)
+            metrics = self.evaluate_mode_connectivity_curve(['test', 'df'], 0.3, 0.7, 5)
             if metric_key_prefix is not None:
                 metrics[metric_key_prefix + '_' + self.args.metric_for_best_model] = metrics[self.args.metric_for_best_model]
                 metrics['unlearn_time'] = self.unlearn_time
@@ -285,9 +322,9 @@ class UnlearningTrainer(Trainer):
 
         return unlearn_metrics
 
-    def evaluate_mode_connectivity_curve(self, eval_splits=['test', 'df', 'dr', 'ood'], num_points=61):
+    def evaluate_mode_connectivity_curve(self, eval_splits=['test', 'df', 'dr', 'ood'], start=0, end=1, num_points=31):
         all_metric = []
-        ts = np.linspace(0, 1, num_points)
+        ts = np.linspace(start, end, num_points)
         for t in tqdm(ts, desc='Points on Curve'):
             t = torch.tensor(t)
             interpolated_params = self.model.interpolate_weights(t)
