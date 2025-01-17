@@ -317,22 +317,8 @@ def main():
             logits = logits[0]
         return logits.argmax(dim=-1)
 
-    metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
-        
-    def compute_metrics(eval_preds):
-        preds, labels = eval_preds
-        preds = preds.argmax(-1)
-        # preds have the same shape as the labels, after the argmax(-1) has been calculated
-        # by preprocess_logits_for_metrics but we need to shift the labels
-        labels = labels[:, 1:].reshape(-1)
-        preds = preds[:, :-1].reshape(-1)
-        return metric.compute(predictions=preds, references=labels)
-
-
     # Initialize our dataset and prepare it for the 'image-classification' task.
     raw_datasets = load_unlearn_data(unlearn_config)
-    from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-1_5')
 
     # Initalize our trainer
     trainer_cls = get_trainer(unlearn_config.unlearn_method)
@@ -341,9 +327,6 @@ def main():
         args=training_args,
         train_dataset=raw_datasets["train"] if training_args.do_train else None,
         eval_dataset=raw_datasets["train"] if training_args.do_eval else None,
-        compute_metrics=compute_metrics,
-        tokenizer=tokenizer,
-        data_collator=default_data_collator,
         unlearn_config=unlearn_config,
         # preprocess_logits_for_metrics=preprocess_logits_for_metrics
     )

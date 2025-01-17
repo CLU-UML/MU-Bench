@@ -8,22 +8,34 @@ from sklearn.metrics import roc_auc_score
 from .original_performance import orig_acc
 
 
-metric = evaluate.load("accuracy")
+metric_acc = evaluate.load("accuracy")
 
-def compute_metrics(p):
+def compute_metrics_acc(p):
     preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
     preds = np.argmax(preds, axis=1)
-    result = metric.compute(predictions=preds, references=p.label_ids)
+    result = metric_acc.compute(predictions=preds, references=p.label_ids)
     if len(result) > 1:
         result["combined_score"] = np.mean(list(result.values())).item()
     return result
 
+def compute_metrics_text_gen(eval_preds):
+    preds, labels = eval_preds
+    preds = preds.argmax(-1)
+    # preds have the same shape as the labels, after the argmax(-1) has been calculated
+    # by preprocess_logits_for_metrics but we need to shift the labels
+    labels = labels[:, 1:].reshape(-1)
+    preds = preds[:, :-1].reshape(-1)
+    result = metric_acc.compute(predictions=preds, references=labels)
+    if len(result) > 1:
+        result["combined_score"] = np.mean(list(result.values())).item()
+    return result
 
 compute_metrics_map = {
-    'cifar10': compute_metrics,
-    'cifar100': compute_metrics,
-    'imdb': compute_metrics,
-    'ddi': compute_metrics,
+    'cifar10': compute_metrics_acc,
+    'cifar100': compute_metrics_acc,
+    'imdb': compute_metrics_acc,
+    'ddi': compute_metrics_acc,
+    'tofu': compute_metrics_text_gen,
 }
 
 def harmonic_mean(dt_acc, df_acc, orig_dt_acc=1.0, random_acc=0.5):
