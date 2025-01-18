@@ -271,7 +271,6 @@ def main():
     unlearn_args.random_seed = training_args.seed
     unlearn_args.backbone = mubench.model_map_rev[model_args.model_name_or_path]
     unlearn_args.use_lora = False
-    unlearn_args.use_cl = False
     unlearn_config = unlearn_args
     
     training_args.metric_for_best_model = 'unlearn_overall_' + training_args.metric_for_best_model
@@ -338,7 +337,7 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        train_result = trainer.unlearn(resume_from_checkpoint=checkpoint)
         trainer.save_model()  # Saves the tokenizer too for easy upload
         metrics = train_result.metrics
         trainer.log_metrics("train", metrics)

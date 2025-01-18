@@ -48,6 +48,7 @@ template = {
 }
 
 
+# Unlearn
 for dr in del_ratio:
     for m in methods:
         for b in backbones:
@@ -61,15 +62,36 @@ for dr in del_ratio:
                 config['del_ratio'] = dr
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
-
-                if b == 'llama2-7b':
-                    config['per_device_train_batch_size'] = 1
-
+                config['warmup_ratio'] = 1 / config['num_train_epochs']
                 config['seed'] = s
+
+                config['use_cl'] = False
                 config['output_dir'] = f'../../checkpoint/unlearn/{d}/{out_dir}/{out_name}'
                 config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
 
-                config['warmup_ratio'] = 1 / config['num_train_epochs']
-
                 with open(f'configs/unlearn/{out_dir}/{out_name}.json', 'w') as f:
+                    json.dump(config, f, indent=4)
+
+# Unlearn for CL
+for dr in del_ratio:
+    for m in methods:
+        for b in backbones:
+            for s in seeds:
+                config = copy.deepcopy(template)
+                out_dir = f'{b}/{m}/{dr}'
+                out_name = f'{s}'
+                os.makedirs(f'configs/unlearn_cl/{out_dir}', exist_ok=True)
+
+                config['unlearn_method'] = m
+                config['del_ratio'] = dr
+                config['model_name_or_path'] = get_full_model_name(b)
+                config['dataset_name'] = d
+                config['warmup_ratio'] = 1 / config['num_train_epochs']
+                config['seed'] = s
+
+                config['use_cl'] = True
+                config['output_dir'] = f'../../checkpoint/unlearn_cl/{d}/{out_dir}/{out_name}'
+                config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
+
+                with open(f'configs/unlearn_cl/{out_dir}/{out_name}.json', 'w') as f:
                     json.dump(config, f, indent=4)
