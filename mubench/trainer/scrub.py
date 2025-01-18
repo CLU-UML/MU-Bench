@@ -27,7 +27,7 @@ class SCRUBTrainer(UnlearningTrainer):
 
         self.args.num_train_epochs /= 2
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         if model.training:
             if self.do_max_step:
                 # Do max epoch on Df. Use Df as the training set. We only need prediction, not label
@@ -35,7 +35,7 @@ class SCRUBTrainer(UnlearningTrainer):
                     inputs.pop('labels')
                 if 'label_ids' in inputs:
                     inputs.pop('label_ids')
-                outputs = model(**inputs, return_dict=True)
+                outputs = model(**inputs, return_dict=True, num_items_in_batch=num_items_in_batch)
                 with torch.no_grad():
                     ori_outputs = self.ori_model(**inputs, return_dict=True)
 
@@ -48,7 +48,7 @@ class SCRUBTrainer(UnlearningTrainer):
                 # We need label for task loss
                 outputs = model(**inputs, return_dict=True)
                 with torch.no_grad():
-                    ori_outputs = self.ori_model(**inputs, return_dict=True)
+                    ori_outputs = self.ori_model(**inputs, return_dict=True, num_items_in_batch=num_items_in_batch)
 
                 kl_loss = nn.KLDivLoss(reduction='none')
                 loss = outputs.loss + kl_loss(outputs.logits, ori_outputs.logits).mean(axis=1)
@@ -61,7 +61,7 @@ class SCRUBTrainer(UnlearningTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         if model.training:
             if self.do_max_step:
                 # Do max epoch on Df. Use Df as the training set. We only need prediction, not label

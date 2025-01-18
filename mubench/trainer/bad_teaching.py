@@ -58,7 +58,7 @@ class BadTeachingTrainer(UnlearningTrainer):
         self.good_teacher.eval()
         self.bad_teacher.eval()
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for unlearning method FineTune
         """
@@ -108,7 +108,7 @@ class BadTeachingTrainer(UnlearningTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """wrapper for compute_loss training with non-SuperLoss."""
 
         if model.training:

@@ -83,40 +83,40 @@ class UnlearningTrainer(Trainer):
 
         return sl_loss
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for unlearning method FineTune
         """
         if self.unlearn_config.use_cl:
-            return self.compute_loss_cl(model, inputs, return_outputs)
+            return self.compute_loss_cl(model, inputs, return_outputs, num_items_in_batch)
         else:
-            return self.compute_loss_non_cl(model, inputs, return_outputs)
+            return self.compute_loss_non_cl(model, inputs, return_outputs, num_items_in_batch)
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for unlearning method FineTune
         """
         if return_outputs:
-            loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+            loss, outputs = super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
         else:
-            loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+            loss = super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for curriculum learning (per-sample loss)
         """
         if return_outputs:
-            per_sample_loss, outputs = super().compute_loss(model, inputs, return_outputs=return_outputs)
+            per_sample_loss, outputs = super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
         else:
-            per_sample_loss = super().compute_loss(model, inputs, return_outputs=return_outputs)
+            per_sample_loss = super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
 
         loss = self.calculate_superloss(per_sample_loss, inputs).mean()
 
         return (loss, outputs) if return_outputs else loss
 
-    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]], num_items_in_batch=None) -> torch.Tensor:
         if not self.unlearn_config.use_mode_connectivity:
             return super().training_step(model, inputs)
 

@@ -24,7 +24,7 @@ class GradAscentTrainer(UnlearningTrainer):
     def method_specific_setup(self):
         pass
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for unlearning method FineTune
         """
@@ -35,7 +35,7 @@ class GradAscentTrainer(UnlearningTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss wrapper for unlearning method FineTune
         """

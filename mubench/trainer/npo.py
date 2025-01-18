@@ -24,7 +24,7 @@ class NPOTrainer(UnlearningTrainer):
         self.orig_model = copy.deepcopy(self.model)
         self.orig_model.eval()
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         outputs = model(**inputs)
         current_forget_loss = outputs.loss
 
