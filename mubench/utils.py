@@ -30,8 +30,7 @@ def load_base_model(unlearn_config):
     elif unlearn_config.data_name == 'tofu':
         from peft import LoraConfig, get_peft_model, PeftModel
 
-        tokenizer = AutoTokenizer.from_pretrained(mubench.model_map[unlearn_config.backbone])
-        model = AutoModelForCausalLM.from_pretrained(
+        model = model_cls_map['tofu'].from_pretrained(
             f'locuslab/tofu_ft_{unlearn_config.backbone}',
             low_cpu_mem_usage=True,
             device_map="auto",
@@ -47,7 +46,7 @@ def load_base_model(unlearn_config):
         model = get_peft_model(model, config)
         model.print_trainable_parameters()
 
-        return tokenizer, model
+        return model
 
     else:
         # Check if the dataset is in the map
