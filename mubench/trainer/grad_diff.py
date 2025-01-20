@@ -22,9 +22,20 @@ class GradDiffTrainer(UnlearningTrainer):
     def method_specific_setup(self):
         pass
 
-    def compute_loss_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         if model.training:
-            pass
+            # Loss on Df
+            df_inputs = {k[len('df_'):]: v for k, v in inputs.items() if k.startswith('df_')}
+            df_outputs = model(**df_inputs, return_dict=True)
+            df_loss = self.calculate_superloss(df_outputs.loss, inputs).mean()
+
+            # Loss on Dr
+            dr_inputs = {k[len('dr_'):]: v for k, v in inputs.items() if k.startswith('dr_')}
+            dr_outputs = model(**dr_inputs, return_dict=True)
+            dr_loss = self.calculate_superloss(dr_outputs.loss, inputs).mean()
+
+            loss = -df_loss + dr_loss
+            outputs = dr_outputs
 
         else:
             if 'is_df' in inputs:
@@ -35,7 +46,7 @@ class GradDiffTrainer(UnlearningTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_loss_non_cl(self, model, inputs, return_outputs=False):
+    def compute_loss_non_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """wrapper for compute_loss training with non-SuperLoss."""
 
         if model.training:

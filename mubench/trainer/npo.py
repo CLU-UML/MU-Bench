@@ -35,3 +35,15 @@ class NPOTrainer(UnlearningTrainer):
         loss = -2 / self.beta * F.logsigmoid(self.beta * neg_log_ratios).mean()
 
         return (loss, outputs) if return_outputs else loss
+
+    def compute_loss_cl(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        outputs = model(**inputs)
+        current_forget_loss = outputs.loss
+
+        with torch.no_grad():
+            ref_forget_loss = self.orig_model(**inputs).loss
+        
+        neg_log_ratios = self.calculate_superloss(current_forget_loss, inputs) - self.calculate_superloss(ref_forget_loss, inputs)
+        loss = -2 / self.beta * F.logsigmoid(self.beta * neg_log_ratios).mean()
+
+        return (loss, outputs) if return_outputs else loss

@@ -30,6 +30,9 @@ class UnlearningArguments:
     random_seed: int = field(
         default=None, 
     )
+    use_so_info: bool = field(
+        default=False, metadata={"help": "Whether to use SOUL (https://arxiv.org/abs/2404.18239) as optimizer."}
+    )
     use_cl: bool = field(
         default=False, metadata={"help": "Whether to use curriculum learning."}
     )

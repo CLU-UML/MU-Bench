@@ -63,6 +63,10 @@ class UnlearningTrainer(Trainer):
         self.unlearn_time = None
         self.method_specific_setup()
 
+        if self.unlearn_config.use_so_info:
+            from .soul import create_sophia_optimizer
+            self.optimizer = create_sophia_optimizer(self.model, self.args.weight_decay, self.args.learning_rate, [0.9, 0.95], 0.04)
+
     def method_specific_setup(self):
         raise NotImplementedError
 
