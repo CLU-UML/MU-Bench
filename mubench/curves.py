@@ -47,7 +47,7 @@ class PolyChain(nn.Module):
 
 
 class CurveModel(nn.Module):
-    def __init__(self, base_model_fn, curve_type, init_start, init_end, num_bends):
+    def __init__(self, base_model_fn, curve_type, init_start, init_end, midpoint_ckpt, num_bends):
         """
         Initialize the Curve Model.
         Args:
@@ -61,8 +61,9 @@ class CurveModel(nn.Module):
         # Initialize non-endpoints with random weights (trainable)
         models = []
         for _ in range(num_bends-2):
-            m = base_model_fn.from_pretrained(init_start)
-            m = m.apply(m._init_weights)
+            m = base_model_fn.from_pretrained(midpoint_ckpt)
+            # m = m.apply(m._init_weights)
+            m.eval()
             models.append(m)
         self.models = nn.ModuleList(models)
 
@@ -73,6 +74,11 @@ class CurveModel(nn.Module):
             self.register_buffer(f"start_{n.replace('.', '__')}", p.detach())
         for n, p in end_model.named_parameters():
             self.register_buffer(f"end_{n.replace('.', '__')}", p.detach())
+
+        # interpolated_params = {n: torch.zeros_like(p) for n, p in m.named_parameters()}
+        # for n in interpolated_params.keys():
+        #     interpolated_params[n] = 0.5 * getattr(self, f"start_{n.replace('.', '__')}") + 0.5 * getattr(self, f"end_{n.replace('.', '__')}")
+        # self.models[0].load_state_dict(interpolated_params, strict=False)
         del start_model, end_model
 
         # Interpolated model
@@ -102,10 +108,16 @@ class CurveModel(nn.Module):
 
     def forward(self, **kwargs):
         if self.training:
-            t = torch.rand(1)
+            if 't' in kwargs:
+                t = kwargs.pop('t')
+            else:
+                t = torch.rand(1)
+                # t = torch.empty(1).normal_(mean=0.5, std=0.1)
+                # t = torch.clamp(t, min=0, max=1)
             interpolated_params = self.interpolate_weights(t)
             self.final_model.load_state_dict(interpolated_params, strict=False)
 
+        # print('xsssssssssssss', [p for p in self.models[0].parameters()][0].sum())
         # interpolated_params = self.interpolate_weights(t)
         # self.final_model.load_state_dict(interpolated_params)
 

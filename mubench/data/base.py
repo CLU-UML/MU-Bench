@@ -128,29 +128,27 @@ def load_unlearn_data(unlearn_config, tokenize=True):
                 }
                 return output
 
-            def process_eval(examples):
-                out = [convert_raw_data_to_model_format(tokenizer, 200, i, j, model_family)
-                    for i, j in zip(examples['question'], examples['answer'])]
-                output = {
-                    'input_ids': [i[0] for i in out],
-                    'attention_mask': [i[2] for i in out],
-                    'label_ids': [i[1] for i in out],
-                }
-                return output
+        def process_eval(examples):
+            out = [convert_raw_data_to_model_format(tokenizer, 200, i, j, model_family)
+                for i, j in zip(examples['question'], examples['answer'])]
+            output = {
+                'input_ids': [i[0] for i in out],
+                'attention_mask': [i[2] for i in out],
+                'label_ids': [i[1] for i in out],
+            }
+            return output
 
-            raw_datasets = method_specific_transformation(unlearn_config, raw_datasets, raw_datasets['df'], raw_datasets['dr'], True, 'answer')
+        raw_datasets = method_specific_transformation(unlearn_config, raw_datasets, raw_datasets['df'], raw_datasets['dr'], True, 'answer')
 
-            for split in raw_datasets.keys():
-                if 'train' in split:
-                    print(f'Set transform for {split} as {train_transforms}')
-                    raw_datasets[split] = raw_datasets[split].map(process_train, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
-                else:
-                    print(f'Set transform for {split} as {eval_transforms}')
-                    raw_datasets[split] = raw_datasets[split].map(process_eval, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
-                    min_size = min(300, len(raw_datasets[split]))
-                    raw_datasets[split] = raw_datasets[split].select(list(range(min_size)))
-
-        # raw_datasets = raw_datasets.map(process, batched=True, remove_columns=['question', 'answer'])
+        for split in raw_datasets.keys():
+            if 'train' in split:
+                print(f'Set transform for {split} as {process_train}')
+                raw_datasets[split] = raw_datasets[split].map(process_train, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
+            else:
+                print(f'Set transform for {split} as {process_eval}')
+                raw_datasets[split] = raw_datasets[split].map(process_eval, batched=True)#, remove_columns=[i for i in raw_datasets[split].column_names if 'question' in i or 'answer' in i])
+                min_size = min(300, len(raw_datasets[split]))
+                raw_datasets[split] = raw_datasets[split].select(list(range(min_size)))
 
     return raw_datasets
 
