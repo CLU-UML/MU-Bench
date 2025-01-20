@@ -71,9 +71,11 @@ class CurveModel(nn.Module):
         start_model = base_model_fn.from_pretrained(init_start)
         end_model = base_model_fn.from_pretrained(init_end)
         for n, p in start_model.named_parameters():
-            self.register_buffer(f"start_{n.replace('.', '__')}", p.detach())
+            if p.requires_grad:
+                self.register_buffer(f"start_{n.replace('.', '__')}", p.detach())
         for n, p in end_model.named_parameters():
-            self.register_buffer(f"end_{n.replace('.', '__')}", p.detach())
+            if p.requires_grad:
+                self.register_buffer(f"end_{n.replace('.', '__')}", p.detach())
 
         # interpolated_params = {n: torch.zeros_like(p) for n, p in m.named_parameters()}
         # for n in interpolated_params.keys():
@@ -89,7 +91,7 @@ class CurveModel(nn.Module):
         weights = self.curve(t)
 
         # Placeholder for interpolated weights
-        interpolated_params = {n: torch.zeros_like(p) for n, p in self.models[0].named_parameters()}
+        interpolated_params = {n: torch.zeros_like(p) for n, p in self.models[0].named_parameters() if p.requires_grad}
 
         # Get current weights of end points
         state_dicts = [m.state_dict() for m in self.models]
