@@ -34,8 +34,8 @@ template = {
     "do_train": True,
     "do_eval": True,
     "dataset_name": 'cifar100',
-    "num_train_epochs": 20,
-    "logging_steps": 500,
+    "num_train_epochs": 10,
+    "logging_steps": 100,
     "evaluation_strategy": "epoch",
     "save_strategy": "epoch",
     "per_device_train_batch_size": 128,
@@ -95,18 +95,17 @@ for b in backbones:
                     config['learning_rate'] *= 5
 
                 if m == 'random_label':
-                    config['learning_rate'] *= 20
+                    config['learning_rate'] *= 10
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 20
+                    config['learning_rate'] *= 10
 
                 if m == 'salun':
-                    config['learning_rate'] *= 20
+                    config['learning_rate'] *= 10
                 
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
                 config['seed'] = s
-                config['use_cl'] = False
                 config['output_dir'] = f'../../checkpoint/unlearn/{d}/{out_dir}/{out_name}'
                 config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
 
@@ -148,4 +147,40 @@ for b in backbones:
 
 
                 with open(f'configs/unlearn_cl/{out_dir}/{out_name}.json', 'w') as f:
+                    json.dump(config, f, indent=4)
+
+# Unlearn for SO
+for b in backbones:
+    for s in seeds:
+        for dr in del_ratio:
+            for m in methods:
+                config = copy.deepcopy(template)
+                out_dir = f'{b}/{m}/{dr}'
+                out_name = f'{s}'
+                os.makedirs(f'configs/unlearn_so/{out_dir}', exist_ok=True)
+
+                config['unlearn_method'] = m
+                config['del_ratio'] = dr
+                
+                if m == 'neggrad':
+                    config['learning_rate'] *= 5
+
+                if m == 'random_label':
+                    config['learning_rate'] *= 10
+
+                if m == 'bad_teaching':
+                    config['learning_rate'] *= 10
+
+                if m == 'salun':
+                    config['learning_rate'] *= 10
+                
+                config['model_name_or_path'] = get_full_model_name(b)
+                config['dataset_name'] = d
+                config['seed'] = s
+                config['use_so_info'] = True
+                config['output_dir'] = f'../../checkpoint/unlearn_so/{d}/{out_dir}/{out_name}'
+                config['hub_model_id'] = f'{d}-{b}-{m}-{dr}-{s}'
+
+
+                with open(f'configs/unlearn_so/{out_dir}/{out_name}.json', 'w') as f:
                     json.dump(config, f, indent=4)
