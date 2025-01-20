@@ -166,13 +166,13 @@ for b in backbones:
                     config['learning_rate'] *= 5
 
                 if m == 'random_label':
-                    config['learning_rate'] *= 10
+                    config['learning_rate'] *= 5
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 10
+                    config['learning_rate'] *= 5
 
                 if m == 'salun':
-                    config['learning_rate'] *= 10
+                    config['learning_rate'] *= 5
                 
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d

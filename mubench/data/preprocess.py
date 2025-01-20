@@ -122,8 +122,8 @@ def preprocess_for_text_classification(unlearn_config, raw_datasets):
 
 def collate_fn_image_classification(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    labels = torch.tensor([example['labels'] for example in examples])
-    out = {"pixel_values": pixel_values, "label": labels}
+    labels = torch.tensor([example['label'] for example in examples])
+    out = {"pixel_values": pixel_values, "labels": labels}
 
     if 'is_df' in examples[0]:
         out['is_df'] = torch.tensor([example['is_df'] for example in examples])
