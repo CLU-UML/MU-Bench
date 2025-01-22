@@ -47,7 +47,7 @@ class PolyChain(nn.Module):
 
 
 class CurveModel(nn.Module):
-    def __init__(self, base_model_fn, curve_type, init_start, init_end, midpoint_ckpt, num_bends):
+    def __init__(self, base_model_fn, curve_type, init_start, init_end, midpoint_ckpt, num_bends, use_lora=False):
         """
         Initialize the Curve Model.
         Args:
@@ -57,19 +57,41 @@ class CurveModel(nn.Module):
         super().__init__()
         self.num_bends = num_bends
         self.curve = curve_mapping[curve_type](num_bends)
+        self.use_lora = use_lora
+
+        if use_lora:
+            from peft import LoraConfig, get_peft_model, PeftModel
+            config = LoraConfig(
+                r=8, 
+                lora_alpha=32, 
+                target_modules=["q_proj","v_proj"], 
+                lora_dropout=0.05,
+                bias="none", 
+                task_type="CAUSAL_LM"
+            )
 
         # Initialize non-endpoints with random weights (trainable)
         models = []
         for _ in range(num_bends-2):
-            m = base_model_fn.from_pretrained(midpoint_ckpt)
-            # m = m.apply(m._init_weights)
+            if use_lora:
+                m = base_model_fn.from_pretrained(midpoint_ckpt, low_cpu_mem_usage=True, device_map="auto")
+                m = get_peft_model(m, config)
+            else:
+                m = base_model_fn.from_pretrained(midpoint_ckpt)
             m.eval()
             models.append(m)
         self.models = nn.ModuleList(models)
 
         # Load endpoints (frozen)
-        start_model = base_model_fn.from_pretrained(init_start)
-        end_model = base_model_fn.from_pretrained(init_end)
+        if use_lora:
+            start_model = base_model_fn.from_pretrained(init_start, low_cpu_mem_usage=True, device_map="auto")
+            end_model = base_model_fn.from_pretrained(init_end, low_cpu_mem_usage=True, device_map="auto")
+            start_model = get_peft_model(start_model, config)
+            end_model = get_peft_model(end_model, config)
+        else:
+            start_model = base_model_fn.from_pretrained(init_start)
+            end_model = base_model_fn.from_pretrained(init_end)
+
         for n, p in start_model.named_parameters():
             if p.requires_grad:
                 self.register_buffer(f"start_{n.replace('.', '__')}", p.detach())
@@ -84,7 +106,11 @@ class CurveModel(nn.Module):
         del start_model, end_model
 
         # Interpolated model
-        self.final_model = base_model_fn.from_pretrained(init_start)
+        if use_lora:
+            self.final_model = base_model_fn.from_pretrained(init_start, low_cpu_mem_usage=True, device_map="auto")
+            self.final_model = get_peft_model(self.final_model, config)
+        else:
+            self.final_model = base_model_fn.from_pretrained(init_start)
 
     def interpolate_weights(self, t):
         """Interpolate the model parameters based on the weights."""
