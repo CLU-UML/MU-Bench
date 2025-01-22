@@ -151,7 +151,7 @@ class Evaluator:
             random_prob = softmax(logits, 1)
 
             df_prob = softmax(df_pred, 1)
-            dis = jensenshannon(df_prob, random_prob, axis=0)
+            dis = jensenshannon(df_prob, random_prob, axis=1)
             div = dis ** 2
             zrf = 1 - div.mean()
             zrfs.append(zrf)
