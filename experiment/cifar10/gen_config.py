@@ -34,7 +34,7 @@ template = {
     "do_train": True,
     "do_eval": True,
     "dataset_name": 'cifar10',
-    "num_train_epochs": 10,
+    "num_train_epochs": 20,
     "logging_steps": 500,
     "evaluation_strategy": "epoch",
     "save_strategy": "epoch",
@@ -95,13 +95,22 @@ for b in backbones:
                     config['learning_rate'] *= 5
 
                 if m == 'random_label':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 5e-5
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 8e-4
+                    elif 'swin' in b:
+                        config['learning_rate'] = 5e-4
 
                 if m == 'salun':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 1e-4
                 
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
@@ -130,13 +139,22 @@ for b in backbones:
                     config['learning_rate'] *= 5
 
                 if m == 'random_label':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 5e-5
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 8e-4
+                    elif 'swin' in b:
+                        config['learning_rate'] = 5e-4
 
                 if m == 'salun':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 1e-4
                 
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
@@ -166,13 +184,22 @@ for b in backbones:
                     config['learning_rate'] *= 5
 
                 if m == 'random_label':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 5e-5
 
                 if m == 'bad_teaching':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 8e-4
+                    elif 'swin' in b:
+                        config['learning_rate'] = 1e-4
 
                 if m == 'salun':
-                    config['learning_rate'] *= 10
+                    if 'resnet' in b:
+                        config['learning_rate'] = 1e-3
+                    elif 'swin' in b:
+                        config['learning_rate'] = 1e-4
                 
                 config['model_name_or_path'] = get_full_model_name(b)
                 config['dataset_name'] = d
