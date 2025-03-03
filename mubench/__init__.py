@@ -81,7 +81,8 @@ model_cls_map = {
     "celeb_profile": AutoModelForCausalLM,
     "tiny_imagenet": AutoModelForImageClassification,
     "tofu": AutoModelForCausalLM,
-    "vilt": ViltForImagesAndTextClassification,
+    "nlvr": ViltForImagesAndTextClassification,
+    "nlvr2": ViltForImagesAndTextClassification,
 }
 
 # Mapping for model class using CL
