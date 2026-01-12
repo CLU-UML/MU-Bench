@@ -5,6 +5,8 @@ from .scrub import SCRUBTrainer
 from .salun import SalUnTrainer
 from .grad_diff import GradDiffTrainer
 from .npo import NPOTrainer
+from .l1_sparse import L1SparseTrainer
+from .delete import DeleteTrainer
 
 
 def get_trainer(trainer_name):
@@ -18,6 +20,8 @@ def get_trainer(trainer_name):
         "salun": SalUnTrainer,
         "grad_diff": GradDiffTrainer,
         "npo": NPOTrainer,
+        "l1_sparse": L1SparseTrainer,
+        "delete": DeleteTrainer,
     }
 
     # Check if the trainer_name exists in the dictionary
