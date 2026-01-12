@@ -267,10 +267,10 @@ def prepare_df_dr(unlearn_config, train_dataset):
     return df_data, dr_data
 
 def method_specific_transformation(unlearn_config, raw_datasets, df_data, dr_data, is_generative_task, label_col='label'):
-    if unlearn_config.unlearn_method in ['retrain', 'fisher', 'l-codec', 'scrub']:
+    if unlearn_config.unlearn_method in ['retrain', 'fisher', 'l-codec', 'scrub', 'l1_sparse']:
         raw_datasets['train'] = copy.deepcopy(dr_data)
 
-    elif unlearn_config.unlearn_method in ['neggrad', 'npo']:
+    elif unlearn_config.unlearn_method in ['neggrad', 'npo', 'delete']:
         raw_datasets['train'] = copy.deepcopy(df_data)
 
     elif unlearn_config.unlearn_method in ['random_label', 'salun']:
